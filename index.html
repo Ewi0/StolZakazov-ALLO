@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Стол заказов (тест)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{--b:#e5e7eb;--bg:#f8fafc;--txt:#0f172a;--acc:#2563eb;--mut:#64748b}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;color:var(--txt);background:var(--bg)}
+    h1{margin:0 0 12px}
+    .wrap{max-width:100%;margin:0 auto}
+    .card{background:#fff;border:1px solid var(--b);border-radius:10px;padding:16px;margin-bottom:16px}
+    form .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:700px){form .row{grid-template-columns:1fr}}
+    label{font-size:13px;color:var(--mut);display:block;margin-bottom:6px}
+    input[type=text],input[type=tel],textarea,select{width:100%;padding:10px;border:1px solid var(--b);border-radius:8px;background:#fff}
+    textarea{resize:vertical}
+    .btn{appearance:none;border:1px solid var(--b);background:#fff;padding:10px 14px;border-radius:8px;cursor:pointer}
+    .btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+    .btn.small{padding:6px 10px;font-size:13px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .tags-input{display:flex;flex-wrap:wrap;gap:6px;border:1px solid var(--b);padding:6px;border-radius:8px;background:#fff;cursor:text}
+    .tags-input input{border:none;outline:none;flex:1;min-width:140px;padding:6px}
+    .tag{background:#0ea5e9;color:#fff;padding:6px 10px;border-radius:999px;display:inline-flex;gap:8px;align-items:center;font-size:13px}
+    .tag .x{cursor:pointer;font-weight:700}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    thead th{font-size:12px;color:var(--mut);text-align:left;padding:6px 8px}
+    tbody tr{background:#fff}
+    tbody td{padding:10px 8px;border-top:1px solid var(--b);border-bottom:1px solid var(--b);vertical-align:top}
+    tbody td:first-child{border-left:1px solid var(--b);border-top-left-radius:10px;border-bottom-left-radius:10px}
+    tbody td:last-child{border-right:1px solid var(--b);border-top-right-radius:10px;border-bottom-right-radius:10px}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid var(--b);background:#fff}
+    .pill.new{border-color:#eab308}.pill.wip{border-color:#0ea5e9}.pill.done{border-color:#22c55e}
+    .muted{color:var(--mut);font-size:12px}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .grow{flex:1}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Стол заказов (тест)</h1>
+  <p class="muted">Прототип без базы данных. Данные сохраняются в этом браузере через <code>localStorage</code>.</p>
+
+  <!-- Форма создания -->
+  <div class="card">
+    <form id="orderForm">
+      <div class="row">
+        <div>
+          <label>Имя клиента</label>
+          <input type="text" id="client" required placeholder="Напр.: Иван Петров"/>
+        </div>
+        <div>
+          <label>Телефон</label>
+          <input type="tel" id="phone" required placeholder="+371 2xxxxxxx"/>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Детали (теги-баблы)</label>
+        <div class="tags-input" id="tagsInput">
+          <input type="text" id="partsInput" placeholder="Введите деталь и Enter (можно через запятую)"/>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Комментарий</label>
+        <textarea id="comment" rows="2" placeholder="Модель, артикул, срок и т.п."></textarea>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label>Статус</label>
+          <select id="status">
+            <option value="new">Новый</option>
+            <option value="wip">В работе</option>
+            <option value="done">Готов</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn primary" type="submit">Добавить заказ</button>
+          <button class="btn" type="button" id="clearForm">Очистить форму</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Панель инструментов -->
+  <div class="card toolbar">
+    <input class="grow" type="text" id="search" placeholder="Поиск по имени, телефону, деталям, комменту..."/>
+    <select id="filterStatus">
+      <option value="">Все статусы</option>
+      <option value="new">Новый</option>
+      <option value="wip">В работе</option>
+      <option value="done">Готов</option>
+    </select>
+    <button class="btn small" id="exportBtn">Экспорт JSON</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none"/>
+    <button class="btn small" id="importBtn">Импорт JSON</button>
+    <button class="btn small" id="wipeBtn" title="Удалить всё">Очистить всё</button>
+  </div>
+
+  <!-- Таблица -->
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Клиент</th><th>Телефон</th><th>Дата</th><th>Детали</th><th>Комментарий</th><th>Статус</th><th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="ordersBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // ====== ХРАНИЛИЩЕ ======
+  const LS_KEY='orders_v1';
+  let orders=JSON.parse(localStorage.getItem(LS_KEY)||'[]'); // [{id,client,phone,date,dateRaw,parts[],comment,status}]
+  let editId=null;                 // какой заказ редактируется сейчас
+  const editParts=new Map();        // временные теги в режиме редактирования: id -> []
+
+  // ====== ЭЛЕМЕНТЫ ======
+  const form=document.getElementById('orderForm');
+  const clientEl=document.getElementById('client');
+  const phoneEl=document.getElementById('phone');
+  const commentEl=document.getElementById('comment');
+  const statusEl=document.getElementById('status');
+  const clearFormBtn=document.getElementById('clearForm');
+
+  const tagsInput=document.getElementById('tagsInput');
+  const partsInput=document.getElementById('partsInput');
+  const tableBody=document.getElementById('ordersBody');
+
+  const searchEl=document.getElementById('search');
+  const filterStatusEl=document.getElementById('filterStatus');
+  const exportBtn=document.getElementById('exportBtn');
+  const importBtn=document.getElementById('importBtn');
+  const importFile=document.getElementById('importFile');
+  const wipeBtn=document.getElementById('wipeBtn');
+
+  // ====== ТЕГИ (форма создания) ======
+  let currentParts=[];
+  function addTag(text){
+    const t=text.trim(); if(!t) return;
+    if(t.includes(',')){t.split(',').map(s=>s.trim()).filter(Boolean).forEach(addTag);return;}
+    if(currentParts.includes(t)) return;
+    currentParts.push(t);
+    const tag=document.createElement('div');
+    tag.className='tag'; tag.dataset.value=t;
+    tag.innerHTML=`<span>${escapeHtml(t)}</span><span class="x" title="Удалить">×</span>`;
+    tag.querySelector('.x').onclick=()=>{currentParts=currentParts.filter(v=>v!==t);tag.remove();};
+    tagsInput.insertBefore(tag,partsInput);
+  }
+  function clearTags(){currentParts=[];[...tagsInput.querySelectorAll('.tag')].forEach(t=>t.remove());}
+  partsInput.addEventListener('keydown',e=>{
+    if((e.key==='Enter'||e.key==='Tab')&&partsInput.value.trim()!==''){e.preventDefault();addTag(partsInput.value);partsInput.value='';}
+  });
+  partsInput.addEventListener('blur',()=>{if(partsInput.value.trim()!==''){addTag(partsInput.value);partsInput.value='';}});
+  tagsInput.addEventListener('click',()=>partsInput.focus());
+
+  // ====== УТИЛИТЫ ======
+  function save(){localStorage.setItem(LS_KEY,JSON.stringify(orders));}
+  function uid(){return 'o_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36);}
+  function formatDate(dt=new Date()){return new Intl.DateTimeFormat('ru-LV',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(dt);}
+  function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function statusPillClass(s){return s==='new'?'pill new':s==='wip'?'pill wip':'pill done';}
+
+  // ====== ОТРИСОВКА ======
+  function render(){
+    const q=searchEl.value.trim().toLowerCase();
+    const f=filterStatusEl.value;
+    const filtered=orders.filter(o=>{
+      const text=[o.client,o.phone,o.comment,...(Array.isArray(o.parts)?o.parts:[])].join(' ').toLowerCase();
+      const matchText=text.includes(q);
+      const matchStatus=!f||o.status===f;
+      return matchText&&matchStatus;
+    });
+
+    tableBody.innerHTML='';
+    filtered.slice().sort((a,b)=>new Date(b.dateRaw||0)-new Date(a.dateRaw||0)).forEach(o=>{
+      const tr=document.createElement('tr'); tr.dataset.id=o.id;
+
+      if(editId===o.id){ // режим редактирования
+        tr.innerHTML=renderEditRowHTML(o);
+        tableBody.appendChild(tr);
+        mountEditTags(o.id);
+        return;
+      }
+
+      tr.innerHTML=`
+        <td><strong>${escapeHtml(o.client)}</strong></td>
+        <td>${escapeHtml(o.phone)}</td>
+        <td>${escapeHtml(o.date)}</td>
+        <td>${(o.parts||[]).map(p=>`<span class="tag"><span>${escapeHtml(p)}</span></span>`).join(' ')||'<span class="muted">—</span>'}</td>
+        <td>${o.comment?escapeHtml(o.comment):'<span class="muted">—</span>'}</td>
+        <td><span class="${statusPillClass(o.status)}">${o.status==='new'?'Новый':o.status==='wip'?'В работе':'Готов'}</span></td>
+        <td>
+          <div class="actions">
+            <button class="btn small" data-act="edit" data-id="${o.id}">Изменить</button>
+            <select data-act="setStatus" data-id="${o.id}" class="btn small">
+              <option value="">Сменить статус…</option>
+              <option value="new">Новый</option>
+              <option value="wip">В работе</option>
+              <option value="done">Готов</option>
+            </select>
+            <button class="btn small" data-act="duplicate" data-id="${o.id}">Дублировать</button>
+            <button class="btn small" data-act="delete" data-id="${o.id}">Удалить</button>
+          </div>
+        </td>`;
+      tableBody.appendChild(tr);
+    });
+  }
+
+  // ====== РЕДАКТИРОВАНИЕ: HTML строки ======
+  function renderEditRowHTML(o){
+    if(!editParts.has(o.id)) editParts.set(o.id, Array.isArray(o.parts)?[...o.parts]:[]);
+    const id=o.id;
+    return `
+      <td><input type="text" id="editClient-${id}" value="${escapeHtml(o.client)}" placeholder="Имя клиента"/></td>
+      <td><input type="tel" id="editPhone-${id}" value="${escapeHtml(o.phone)}" placeholder="+371 2xxxxxxx"/></td>
+      <td><div class="muted">${escapeHtml(o.date)}</div></td>
+      <td>
+        <div class="tags-input" id="tagsInput-${id}" data-role="tagsEdit" data-id="${id}">
+          <input type="text" id="partsInput-${id}" data-role="partsInputEdit" data-id="${id}" placeholder="Введите деталь и Enter"/>
+        </div>
+      </td>
+      <td><textarea id="editComment-${id}" rows="2" placeholder="Комментарий">${o.comment?escapeHtml(o.comment):''}</textarea></td>
+      <td>
+        <select id="editStatus-${id}">
+          <option value="new" ${o.status==='new'?'selected':''}>Новый</option>
+          <option value="wip" ${o.status==='wip'?'selected':''}>В работе</option>
+          <option value="done" ${o.status==='done'?'selected':''}>Готов</option>
+        </select>
+      </td>
+      <td>
+        <div class="actions">
+          <button class="btn small primary" data-act="save" data-id="${id}">Сохранить</button>
+          <button class="btn small" data-act="cancel" data-id="${id}">Отмена</button>
+        </div>
+      </td>`;
+  }
+
+  // смонтировать теги в режиме редактирования
+  function mountEditTags(id){
+    const container=document.getElementById(`tagsInput-${id}`);
+    const input=document.getElementById(`partsInput-${id}`);
+    if(!container||!input) return;
+
+    container.addEventListener('click',()=>input.focus());
+    // очистить визуальные теги (на случай повторного mount)
+    [...container.querySelectorAll('.tag')].forEach(x=>x.remove());
+    const arr=editParts.get(id)||[];
+    arr.forEach(p=>{
+      const tag=document.createElement('div');
+      tag.className='tag';
+      tag.innerHTML=`<span>${escapeHtml(p)}</span><span class="x" data-role="removeTagEdit" data-id="${id}" data-part="${escapeHtml(p)}" title="Удалить">×</span>`;
+      container.insertBefore(tag,input);
+    });
+    // обработчики ввода
+    input.onkeydown=(e)=>{
+      if((e.key==='Enter'||e.key==='Tab')&&input.value.trim()!==''){e.preventDefault();addTagEdit(id,input.value);input.value='';}
+    };
+    input.onblur=()=>{if(input.value.trim()!==''){addTagEdit(id,input.value);input.value='';}};
+  }
+
+  function addTagEdit(id,text){
+    const t=text.trim(); if(!t) return;
+    if(t.includes(',')){t.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>addTagEdit(id,s));return;}
+    const arr=editParts.get(id)||[];
+    if(arr.includes(t)) return;
+    arr.push(t); editParts.set(id,arr); mountEditTags(id);
+  }
+
+  function removeTagEdit(id,part){
+    const arr=editParts.get(id)||[];
+    editParts.set(id,arr.filter(p=>p!==part)); mountEditTags(id);
+  }
+
+  // ====== ДЕЙСТВИЯ ПО ТАБЛИЦЕ ======
+  tableBody.addEventListener('change', (e)=>{
+    const sel=e.target;
+    if(sel.dataset.act==='setStatus'){
+      const id=sel.dataset.id, val=sel.value; if(!val) return;
+      const item=orders.find(x=>x.id===id); if(item){item.status=val; save(); render();}
+    }
+  });
+
+  tableBody.addEventListener('click',(e)=>{
+    const rm=e.target.closest('[data-role="removeTagEdit"]');
+    if(rm){ removeTagEdit(rm.dataset.id, rm.dataset.part); return; }
+
+    const btn=e.target.closest('button'); const sel=e.target.closest('select');
+    if(btn){
+      const id=btn.dataset.id, act=btn.dataset.act;
+      const idx=orders.findIndex(x=>x.id===id);
+      if(act==='edit'){
+        if(editId && editId!==id){ alert('Сначала сохраните или отмените текущее редактирование.'); return; }
+        editId=id; render();
+      }else if(act==='delete'){
+        if(idx!==-1 && confirm('Удалить заказ?')){orders.splice(idx,1); save(); render();}
+      }else if(act==='duplicate'){
+        if(idx!==-1){const o=orders[idx]; const copy={...o,id:uid(),date:formatDate(),dateRaw:new Date().toISOString()}; orders.unshift(copy); save(); render();}
+      }else if(act==='save'){
+        // собрать данные из полей редактирования
+        const client=document.getElementById(`editClient-${id}`).value.trim();
+        const phone=document.getElementById(`editPhone-${id}`).value.trim();
+        const comment=document.getElementById(`editComment-${id}`).value.trim();
+        const status=document.getElementById(`editStatus-${id}`).value;
+        const parts=editParts.get(id)||[];
+        if(!client){alert('Укажите имя клиента');return;}
+        if(!phone){alert('Укажите телефон');return;}
+        const item=orders.find(x=>x.id===id);
+        if(item){ item.client=client; item.phone=phone; item.comment=comment; item.status=status; item.parts=[...parts]; save(); }
+        editId=null; editParts.delete(id); render();
+      }else if(act==='cancel'){
+        editId=null; editParts.delete(id); render();
+      }
+    }
+    if(sel && sel.dataset && sel.dataset.act==='setStatus'){/* обработано в change */}
+  });
+
+  // ====== СОЗДАНИЕ / ОЧИСТКА ФОРМЫ ======
+  form.addEventListener('submit', e=>{
+    e.preventDefault();
+    const order={
+      id:uid(),
+      client:clientEl.value.trim(),
+      phone:phoneEl.value.trim(),
+      date:formatDate(),
+      dateRaw:new Date().toISOString(),
+      parts:[...currentParts],
+      comment:commentEl.value.trim(),
+      status:statusEl.value
+    };
+    if(!order.client){alert('Укажите имя клиента');return;}
+    if(!order.phone){alert('Укажите телефон');return;}
+    orders.push(order); save(); render();
+    form.reset(); clearTags(); clientEl.focus();
+  });
+  clearFormBtn.addEventListener('click',()=>{form.reset(); clearTags(); clientEl.focus();});
+
+  // ====== ПОИСК/ФИЛЬТР ======
+  searchEl.addEventListener('input',render);
+  filterStatusEl.addEventListener('change',render);
+
+  // ====== ЭКСПОРТ/ИМПОРТ/ОЧИСТКА ======
+  exportBtn.addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify(orders,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a');
+    a.href=url; a.download='orders-export.json'; document.body.appendChild(a); a.click();
+    URL.revokeObjectURL(url); a.remove();
+  });
+  importBtn.addEventListener('click',()=>importFile.click());
+  importFile.addEventListener('change',async()=>{
+    const f=importFile.files[0]; if(!f) return;
+    try{ const text=await f.text(); const data=JSON.parse(text);
+      if(!Array.isArray(data)) throw new Error('Неверный формат JSON');
+      orders=data; save(); render(); alert('Импорт выполнен.');
+    }catch(err){ alert('Ошибка импорта: '+err.message); }
+    finally{ importFile.value=''; }
+  });
+  wipeBtn.addEventListener('click',()=>{ if(confirm('Удалить все записи?')){orders=[]; save(); render();} });
+
+  // ====== ИНИЦИАЛИЗАЦИЯ ======
+  render();
+</script>
+</body>
+</html>
