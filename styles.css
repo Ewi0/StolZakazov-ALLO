@@ -1,0 +1,95 @@
+:root{
+  --bg:#f8fafc;
+  --txt:#0f172a;
+
+  /* цвета статусов */
+  --st-new-bg:#fde68a;   --st-new-tx:#7c5a00;  /* amber */
+  --st-wip-bg:#bae6fd;   --st-wip-tx:#0b4c6a;  /* sky   */
+  --st-done-bg:#bbf7d0;  --st-done-tx:#14532d; /* green */
+
+  /* просрочка */
+  --overdue-bg:#fee2e2;  /* red-200 */
+  --overdue-bd:#ef9a9a;  /* soft red border */
+
+  /* автодополнение */
+  --ac-bg:#ffffff;
+  --ac-bd:#e5e7eb;
+  --ac-hover:#f3f4f6;
+  --ac-active:#e5e7eb;
+}
+
+body{ color:var(--txt); background:var(--bg); }
+
+/* tags input */
+.tags-input{ cursor:text; min-height:42px; align-items:center; }
+.tags-input input{ outline:none; min-width:140px; }
+
+/* table tweaks */
+table.table td, table.table th{ vertical-align:top; }
+
+/* truncate comment with tooltip */
+.truncate{
+  display:inline-block;
+  max-width: 40ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+/* кликабельные статусы */
+.badge-status{
+  cursor:pointer; user-select:none; font-weight:600;
+  border:1px solid transparent;
+}
+.badge-status.status-new{  background:var(--st-new-bg);  color:var(--st-new-tx); }
+.badge-status.status-wip{  background:var(--st-wip-bg);  color:var(--st-wip-tx); }
+.badge-status.status-done{ background:var(--st-done-bg); color:var(--st-done-tx); }
+.badge-status:hover{ opacity:.9; }
+.badge-status:active{ transform:translateY(1px); }
+
+/* просрочка: срок + лёгкая окантовка у статуса */
+.overdue{ background:var(--overdue-bg); padding:.1rem .3rem; border-radius:.375rem; }
+.overdue-badge{ box-shadow: 0 0 0 2px var(--overdue-bd) inset; }
+
+/* сортируемые заголовки */
+th.sortable{ cursor:pointer; user-select:none; }
+th.sortable .sort-indicator{ margin-left:.25rem; }
+
+/* автодополнение телефона */
+.ac-list{
+  position:absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--ac-bg);
+  border: 1px solid var(--ac-bd);
+  border-top: none;
+  border-radius: 0 0 .5rem .5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,.06);
+  display: none;
+  max-height: 220px;
+  overflow: auto;
+}
+.ac-list.show{ display: block; }
+.ac-item{
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  width: 100%;
+  padding: .5rem .75rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 0.95rem;
+}
+.ac-item:hover{ background: var(--ac-hover); }
+.ac-item.active{ background: var(--ac-active); }
+.ac-mark{ background: transparent; font-weight: 700; }
+
+/* mobile buttons */
+@media (max-width:576px){
+  .btn-group>.btn,.btn{ padding:.45rem .6rem; }
+  .truncate{ max-width: 26ch; }
+}
