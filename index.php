@@ -23,24 +23,54 @@ body{ color:var(--txt); background:var(--bg); }
 .tags-input input{ outline:none; min-width:140px; }
 table.table td, table.table th{ vertical-align:top; }
 .truncate{ display:inline-block; max-width: 40ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
-.badge-status{ cursor:pointer; user-select:none; font-weight:600; border:1px solid transparent; }
+
+/* Статусы — крупнее и не кликабельные */
+.badge-status{
+  cursor: default;
+  user-select: none;
+  font-weight: 600;
+  border: 1px solid transparent;
+  padding: .45rem .75rem;
+  font-size: .95rem;
+}
 .badge-status.status-new{  background:var(--st-new-bg);  color:var(--st-new-tx); }
 .badge-status.status-wip{  background:var(--st-wip-bg);  color:var(--st-wip-tx); }
 .badge-status.status-done{ background:var(--st-done-bg); color:var(--st-done-tx); }
-.badge-status:hover{ opacity:.9; } .badge-status:active{ transform:translateY(1px); }
+
 .overdue{ background:var(--overdue-bg)!important; padding:.1rem .4rem; border-radius:.375rem; }
 .overdue-badge{ box-shadow: 0 0 0 2px var(--overdue-bd) inset; }
-th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ margin-left:.25rem; }
+
+th.sortable{ cursor:pointer; user-select:none; }
+th.sortable .sort-indicator{ margin-left:.25rem; }
+
 .ac-list{ position:absolute; z-index: 10; top: 100%; left: 0; right: 0; background: var(--ac-bg); border: 1px solid var(--ac-bd); border-top: none; border-radius: 0 0 .5rem .5rem; box-shadow: 0 4px 12px rgba(0,0,0,.06); display: none; max-height: 220px; overflow: auto; }
 .ac-list.show{ display:block; }
 .ac-item{ display:flex; align-items:center; gap:.25rem; width:100%; padding:.5rem .75rem; border:0; background:transparent; text-align:left; font-size:.95rem; }
 .ac-item:hover{ background:var(--ac-hover); } .ac-item.active{ background:var(--ac-active); }
-.ac-mark{ background:transparent; font-weight:700; }
-@media (max-width:576px){ .btn-group>.btn,.btn{ padding:.45rem .6rem; } .truncate{ max-width:26ch; } }
+
+@media (max-width:576px){
+  .btn-group>.btn,.btn{ padding:.45rem .6rem; }
+  .truncate{ max-width:26ch; }
+}
 #scrollTopBtn{ position:fixed; bottom:20px; right:20px; display:none; z-index:1050; }
+
+/* верхняя перекладина */
+.topbar{ position:sticky; top:0; z-index:1030; background:#fff; border-bottom:1px solid #e9ecef; }
+.topbar .container{ display:flex; gap:.5rem; align-items:center; justify-content:space-between; padding:.5rem 1rem; }
 </style>
 </head>
 <body>
+
+<!-- Перекладина с кнопкой назад в склад -->
+<div class="topbar">
+  <div class="container">
+    <a class="btn btn-outline-secondary btn-sm" href="/warehouse/">
+      ← Электронный склад
+    </a>
+    <span class="text-secondary small">Стол заказов</span>
+  </div>
+</div>
+
 <div class="container py-3">
   <div class="d-flex flex-column flex-md-row align-items-md-end gap-2 mb-3">
     <div class="me-auto">
@@ -59,7 +89,9 @@ th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ ma
             <div class="ac-list" id="phoneAc"></div>
             <div class="form-text d-flex gap-2 align-items-center">
               <span>Если номер без префикса — при сохранении добавим <b>+371</b>.</span>
-              <span id="dupHint" class="text-warning-emphasis small d-none"><i class="bi bi-exclamation-triangle"></i> Такой номер уже есть</span>
+              <span id="dupHint" class="text-warning-emphasis small d-none">
+                <i class="bi bi-exclamation-triangle"></i> Такой номер уже есть
+              </span>
             </div>
           </div>
 
@@ -243,34 +275,46 @@ partsInput.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key==='Tab')&&
 partsInput.addEventListener('blur',()=>{ if(partsInput.value.trim()!==''){ addTag(partsInput.value); partsInput.value=''; }});
 tagsInput.addEventListener('click',()=>partsInput.focus());
 
-/* phone autocomplete */
+/* phone autocomplete — фикс выбора через pointerdown */
 function attachPhoneAutocomplete(inputEl){
   const ac = inputEl.parentElement.querySelector('.ac-list');
-  let suppressUntil=0;
-  const close=()=>{ ac.classList.remove('show'); ac.innerHTML=''; };
-  const open=async ()=>{
-    const raw=inputEl.value.trim(); const qd=onlyDigits(raw);
-    if(Date.now()<suppressUntil || !qd || qd.length<2){ close(); return; }
+  let suppressUntil = 0;
+  const close = () => { ac.classList.remove('show'); ac.innerHTML = ''; };
+  const open  = async () => {
+    const raw = inputEl.value.trim();
+    const qd  = (raw||'').replace(/\D/g,'');
+    if (Date.now() < suppressUntil || !qd || qd.length < 2) { close(); return; }
     const list = await apiPhones(qd, 5);
-    if(!list.length || (list.length && list[0]===raw)){ close(); return; }
-    ac.innerHTML = list.map((ph,i)=>`<button type="button" class="ac-item${i===0?' active':''}" data-val="${escapeHtml(ph)}"><i class="bi bi-telephone me-2"></i>${escapeHtml(ph)}</button>`).join('');
+    if (!list.length || list[0] === raw) { close(); return; }
+    ac.innerHTML = list.map((ph,i)=>`
+      <button type="button" class="ac-item${i===0?' active':''}" data-val="${escapeHtml(ph)}">
+        <i class="bi bi-telephone me-2"></i>${escapeHtml(ph)}
+      </button>`).join('');
     ac.classList.add('show');
-    ac.querySelectorAll('.ac-item').forEach(btn=> btn.onclick=()=>{
-      inputEl.value = btn.dataset.val; close(); suppressUntil = Date.now()+250; inputEl.focus();
+    ac.querySelectorAll('.ac-item').forEach(btn=>{
+      btn.addEventListener('pointerdown', (ev)=>{
+        ev.preventDefault();
+        inputEl.value = btn.dataset.val;
+        suppressUntil = Date.now() + 500;
+        close();
+        inputEl.dispatchEvent(new Event('input', {bubbles:true}));
+      });
     });
   };
-  inputEl.addEventListener('input', debounce(open,80));
+  inputEl.addEventListener('input', debounce(open, 80));
   inputEl.addEventListener('focus', open);
-  inputEl.addEventListener('blur', ()=> setTimeout(close,120));
-  document.addEventListener('mousedown', e=>{ if(ac.classList.contains('show') && !inputEl.parentElement.contains(e.target)) close(); });
+  document.addEventListener('mousedown', e=>{ if (ac.classList.contains('show') && !inputEl.parentElement.contains(e.target)) close(); });
+  inputEl.addEventListener('blur', ()=> setTimeout(close, 0));
 }
 attachPhoneAutocomplete(phoneEl);
 
 /* ===== Render helpers ===== */
 function statusBadgeHTML(status, id, overdue=false){
-  const map={ new:{cls:'badge-status status-new',text:'Новый'}, wip:{cls:'badge-status status-wip',text:'В работе'}, done:{cls:'badge-status status-done',text:'Готов'} };
+  const map={ new:{cls:'badge-status status-new',text:'Новый'},
+              wip:{cls:'badge-status status-wip',text:'В работе'},
+              done:{cls:'badge-status status-done',text:'Готов'} };
   const m=map[status]||map.new, extra=overdue?' overdue-badge':'';
-  return `<span class="badge rounded-pill ${m.cls}${extra}" data-act="cycleStatus" data-id="${id}" title="Кликните, чтобы изменить статус">${m.text}</span>`;
+  return `<span class="badge rounded-pill ${m.cls}${extra}">${m.text}</span>`;
 }
 function deadlineCellHTML(o){
   if(!o.deadline) return '<span class="text-secondary">—</span>';
@@ -390,10 +434,7 @@ form.addEventListener('submit', async (e)=>{
   if (!order.phone){ alert('Укажите телефон'); return; }
   const res = await apiCreate(order);
   if (!res.ok){ alert('Ошибка создания'); return; }
-
-  // мягкое предупреждение о дубликате (если уже был такой номер в БД)
   if (res.duplicate) { dupHint.classList.remove('d-none'); setTimeout(()=>dupHint.classList.add('d-none'), 3000); }
-
   form.reset(); clearTags(); phoneEl.focus();
   await reload(true);
 });
@@ -434,7 +475,6 @@ document.addEventListener('click', async (e)=>{
       };
       const res = await apiUpdate(upd);
       if (res.ok){
-        // показать мягкое предупреждение, если номер уже встречался
         if (res.duplicate) { dupHint.classList.remove('d-none'); setTimeout(()=>dupHint.classList.add('d-none'), 3000); }
         Object.assign(item, upd);
         updateRowDOM(item);
@@ -450,14 +490,6 @@ document.addEventListener('click', async (e)=>{
     const item = items.find(x=>x.id===id); if(!item) return;
     const res = await apiUpdate({ id, phone:item.phone, comment:item.comment, status:el.dataset.val, supplier:item.supplier, deadline:item.deadline, parts:item.parts });
     if (res.ok){ item.status = el.dataset.val; updateRowDOM(item); } else { alert('Не сохранилось'); }
-    return;
-  }
-
-  if (act==='cycleStatus'){
-    const item = items.find(x=>x.id===id); if(!item) return;
-    const next = item.status==='new' ? 'wip' : (item.status==='wip' ? 'done' : 'new');
-    const res = await apiUpdate({ id, phone:item.phone, comment:item.comment, status:next, supplier:item.supplier, deadline:item.deadline, parts:item.parts });
-    if (res.ok){ item.status=next; updateRowDOM(item); } else { alert('Не сохранилось'); }
     return;
   }
 
