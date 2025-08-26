@@ -1,9 +1,10 @@
+<?php /* index.php — фронт для Стола заказов (PHP+MySQL) */ ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Стол заказов (тест)</title>
+<title>Стол заказов</title>
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -22,34 +23,60 @@ body{ color:var(--txt); background:var(--bg); }
 .tags-input input{ outline:none; min-width:140px; }
 table.table td, table.table th{ vertical-align:top; }
 .truncate{ display:inline-block; max-width: 40ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
-.badge-status{ cursor:pointer; user-select:none; font-weight:600; border:1px solid transparent; }
+
+/* Статусы — крупнее и не кликабельные */
+.badge-status{
+  cursor: default;
+  user-select: none;
+  font-weight: 600;
+  border: 1px solid transparent;
+  padding: .45rem .75rem;
+  font-size: .95rem;
+}
 .badge-status.status-new{  background:var(--st-new-bg);  color:var(--st-new-tx); }
 .badge-status.status-wip{  background:var(--st-wip-bg);  color:var(--st-wip-tx); }
 .badge-status.status-done{ background:var(--st-done-bg); color:var(--st-done-tx); }
-.badge-status:hover{ opacity:.9; } .badge-status:active{ transform:translateY(1px); }
-.overdue{ background:var(--overdue-bg); padding:.1rem .3rem; border-radius:.375rem; }
+
+.overdue{ background:var(--overdue-bg)!important; padding:.1rem .4rem; border-radius:.375rem; }
 .overdue-badge{ box-shadow: 0 0 0 2px var(--overdue-bd) inset; }
-th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ margin-left:.25rem; }
+
+th.sortable{ cursor:pointer; user-select:none; }
+th.sortable .sort-indicator{ margin-left:.25rem; }
+
 .ac-list{ position:absolute; z-index: 10; top: 100%; left: 0; right: 0; background: var(--ac-bg); border: 1px solid var(--ac-bd); border-top: none; border-radius: 0 0 .5rem .5rem; box-shadow: 0 4px 12px rgba(0,0,0,.06); display: none; max-height: 220px; overflow: auto; }
 .ac-list.show{ display:block; }
 .ac-item{ display:flex; align-items:center; gap:.25rem; width:100%; padding:.5rem .75rem; border:0; background:transparent; text-align:left; font-size:.95rem; }
 .ac-item:hover{ background:var(--ac-hover); } .ac-item.active{ background:var(--ac-active); }
-.ac-mark{ background:transparent; font-weight:700; }
-@media (max-width:576px){ .btn-group>.btn,.btn{ padding:.45rem .6rem; } .truncate{ max-width:26ch; } }
+
+@media (max-width:576px){
+  .btn-group>.btn,.btn{ padding:.45rem .6rem; }
+  .truncate{ max-width:26ch; }
+}
+#scrollTopBtn{ position:fixed; bottom:20px; right:20px; display:none; z-index:1050; }
+
+/* верхняя перекладина */
+.topbar{ position:sticky; top:0; z-index:1030; background:#fff; border-bottom:1px solid #e9ecef; }
+.topbar .container{ display:flex; gap:.5rem; align-items:center; justify-content:space-between; padding:.5rem 1rem; }
 </style>
 </head>
 <body>
-  <button id="scrollTopBtn" class="btn btn-primary rounded-circle"
-  style="position: fixed; bottom: 20px; right: 20px; display: none; z-index: 1050;">
-  ↑
-</button>
+
+<!-- Перекладина с кнопкой назад в склад -->
+<div class="topbar">
+  <div class="container">
+    <a class="btn btn-outline-secondary btn-sm" href="/warehouse/">
+      ← Электронный склад
+    </a>
+    <span class="text-secondary small">Стол заказов</span>
+  </div>
+</div>
+
 <div class="container py-3">
   <div class="d-flex flex-column flex-md-row align-items-md-end gap-2 mb-3">
     <div class="me-auto">
-      <h1 class="h3 mb-1">Стол заказов (тест)</h1>
-      <div class="text-secondary small">Без БД: <code>localStorage</code>. Ленивая подгрузка, автодополнение телефона, печать наклеек.</div>
+      <h1 class="h3 mb-1">Стол заказов</h1>
+      <div class="text-secondary small">PHP + MySQL. Ленивая подгрузка, автодоп. телефона, печать наклеек.</div>
     </div>
-    <div><button class="btn btn-outline-danger btn-sm" id="wipeBtn"><i class="bi bi-trash3"></i> Очистить всё</button></div>
   </div>
 
   <div class="card shadow-sm mb-3">
@@ -59,10 +86,12 @@ th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ ma
           <div class="col-12 col-md-6 position-relative">
             <label for="phone" class="form-label">Телефон</label>
             <input type="tel" id="phone" class="form-control phone-input" required placeholder="+371XXXXXXXX">
-            <div class="ac-list"></div>
+            <div class="ac-list" id="phoneAc"></div>
             <div class="form-text d-flex gap-2 align-items-center">
               <span>Если номер без префикса — при сохранении добавим <b>+371</b>.</span>
-              <span id="dupHint" class="text-warning-emphasis small d-none"><i class="bi bi-exclamation-triangle"></i> Такой номер уже есть в списке</span>
+              <span id="dupHint" class="text-warning-emphasis small d-none">
+                <i class="bi bi-exclamation-triangle"></i> Такой номер уже есть
+              </span>
             </div>
           </div>
 
@@ -75,7 +104,7 @@ th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ ma
 
           <div class="col-12">
             <label for="comment" class="form-label">Комментарий</label>
-            <textarea id="comment" class="form-control" rows="2" placeholder="Модель, артикул, примечания..."></textarea>
+            <textarea id="comment" class="form-control" rows="2" placeholder="Короткое примечание для этикетки"></textarea>
           </div>
 
           <div class="col-12 col-md-4">
@@ -105,7 +134,7 @@ th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ ma
 
   <div class="card shadow-sm mb-3">
     <div class="card-body d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
-      <input id="search" class="form-control flex-grow-1" type="text" placeholder="Поиск по телефону, деталям, комменту, сроку, поставщику...">
+      <input id="search" class="form-control flex-grow-1" type="text" placeholder="Поиск по телефону, комментариям, тегам, поставщику">
       <div class="d-flex gap-2 w-100 w-lg-auto">
         <select id="filterStatus" class="form-select">
           <option value="">Все статусы</option><option value="new">Новый</option><option value="wip">В работе</option><option value="done">Готов</option>
@@ -127,7 +156,7 @@ th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ ma
         <thead class="table-light">
           <tr>
             <th>Телефон</th>
-            <th class="sortable d-none d-md-table-cell" data-sort="date">Дата <i class="bi sort-indicator"></i></th>
+            <th class="sortable d-none d-md-table-cell" data-sort="created_at">Дата <i class="bi sort-indicator"></i></th>
             <th>Детали</th>
             <th class="d-none d-xl-table-cell">Комментарий</th>
             <th class="sortable d-none d-lg-table-cell" data-sort="deadline">Срок <i class="bi sort-indicator"></i></th>
@@ -144,176 +173,174 @@ th.sortable{ cursor:pointer; user-select:none; } th.sortable .sort-indicator{ ma
   </div>
 </div>
 
+<button id="scrollTopBtn" class="btn btn-primary rounded-circle">↑</button>
+
+<!-- Модалка редактирования -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Редактирование заказа</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm" autocomplete="off">
+          <input type="hidden" id="editId">
+          <div class="mb-3">
+            <label class="form-label">Телефон</label>
+            <input type="tel" id="editPhone" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Комментарий</label>
+            <textarea id="editComment" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">Срок (дедлайн)</label>
+              <input type="date" id="editDeadline" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Поставщик</label>
+              <select id="editSupplier" class="form-select">
+                <option value="">— не выбран —</option>
+                <option>Stiga</option><option>Husqvarna</option><option>AL-KO</option>
+                <option>Briggs &amp; Stratton</option><option>Makita</option><option>Oregon</option>
+                <option>Partner</option><option>Gardena</option><option>Stihl</option>
+                <option>Echo</option><option>MTD</option>
+              </select>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label">Статус</label>
+            <div class="d-flex gap-2">
+              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="new"> Новый</label>
+              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="wip"> В работе</label>
+              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="done"> Готов</label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button id="editSaveBtn" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  const scrollTopBtn = document.getElementById('scrollTopBtn');
+/* ===== API ===== */
+async function apiList(params={}){ const url=new URL('orders.php',location.href); url.searchParams.set('action','list'); Object.entries(params).forEach(([k,v])=> (v!=='' && v!=null) && url.searchParams.set(k,v)); const r=await fetch(url); const j=await r.json(); return j.items||[]; }
+async function apiCreate(order){ const r=await fetch('orders.php?action=create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(order)}); return r.json(); }
+async function apiUpdate(order){ const r=await fetch('orders.php?action=update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(order)}); return r.json(); }
+async function apiDelete(id){ const r=await fetch('orders.php?action=delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}); return r.json(); }
+async function apiPhones(q, limit=5){ const url=new URL('orders.php',location.href); url.searchParams.set('action','phones'); url.searchParams.set('q',q); url.searchParams.set('limit',limit); const r=await fetch(url); const j=await r.json(); return j.items||[]; }
 
-// показывать/скрывать кнопку в зависимости от прокрутки
-window.addEventListener('scroll', () => {
-  if (window.scrollY > 300) {
-    scrollTopBtn.style.display = 'block';
-  } else {
-    scrollTopBtn.style.display = 'none';
-  }
-});
+/* ===== State ===== */
+let items=[], offset=0, loading=false; const LIMIT=20, STEP=5;
+let sortField='created_at', sortDir='desc'; const filters={ q:'', status:'', supplier:'' };
 
-// плавный скролл наверх по клику
-scrollTopBtn.addEventListener('click', () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-});
-</script>
-<script>
-const LS_KEY='orders_v1', STATUS_LIST=['new','wip','done'];
-let orders=JSON.parse(localStorage.getItem(LS_KEY)||'[]');
-const INITIAL_COUNT=20, STEP_COUNT=5;
-let visibleCount=INITIAL_COUNT, cachedList=[], isLoadingMore=false;
-let editId=null, sortField='date', sortDir='desc', tooltipInstances=[];
-const editParts=new Map();
-
+/* ===== Elements ===== */
 const form=document.getElementById('orderForm');
 const phoneEl=document.getElementById('phone');
 const commentEl=document.getElementById('comment');
 const supplierEl=document.getElementById('supplier');
 const deadlineEl=document.getElementById('deadline');
 const clearFormBtn=document.getElementById('clearForm');
-const wipeBtn=document.getElementById('wipeBtn');
 const dupHint=document.getElementById('dupHint');
-const infiniteHint=document.getElementById('infiniteHint');
-const endHint=document.getElementById('endHint');
 const searchEl=document.getElementById('search');
 const filterStatusEl=document.getElementById('filterStatus');
 const filterSupplierEl=document.getElementById('filterSupplier');
 const tableBody=document.getElementById('ordersBody');
-const tagsInput=document.getElementById('tagsInput');
+const infiniteHint=document.getElementById('infiniteHint');
+const endHint=document.getElementById('endHint');
 const partsInput=document.getElementById('partsInput');
+const tagsInput=document.getElementById('tagsInput');
+const scrollTopBtn=document.getElementById('scrollTopBtn');
 
-const save=()=>localStorage.setItem(LS_KEY, JSON.stringify(orders));
-const uid=()=> 'o_'+Math.random().toString(36).slice(2,9)+Date.now().toString(36);
-const formatDate=(d=new Date())=> new Intl.DateTimeFormat('ru-LV',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);
+/* ===== Utils ===== */
 const escapeHtml=s=>String(s).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const normalizePhone=v=>{ let p=String(v).trim(); if(!p) return ''; if(!p.startsWith('+371') && /^\d+$/.test(p)) p='+371'+p; return p; };
 const onlyDigits=s=>(s||'').replace(/\D/g,'');
+const normalizePhone=v=>{ let p=String(v).trim(); if(!p) return ''; if(!p.startsWith('+371') && /^\d+$/.test(p)) p='+371'+p; return p; };
 const toYMD=s=>{ if(!s) return null; const [y,m,d]=s.split('-').map(Number); if(!y||!m||!d) return null; return new Date(y,m-1,d); };
 const isOverdue=(deadline,status)=>{ if(!deadline||status==='done')return false; const d=toYMD(deadline); if(!d) return false; const t=new Date(); t.setHours(0,0,0,0); return d<t; };
 const debounce=(fn,ms=150)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
 
-function hasPhoneDuplicate(p){ return p && orders.some(o=>o.phone===p); }
-function updateDupHint(){ const np=normalizePhone(phoneEl.value); dupHint.classList.toggle('d-none', !hasPhoneDuplicate(np)); }
-phoneEl.addEventListener('input', updateDupHint);
-phoneEl.addEventListener('blur', updateDupHint);
+/* tags (parts) */
+let currentParts=[];
+function addTag(text){ const t=String(text).trim(); if(!t) return; if(t.includes(',')){ t.split(',').map(s=>s.trim()).filter(Boolean).forEach(addTag); return; } if(currentParts.includes(t)) return; currentParts.push(t); const tag=document.createElement('span'); tag.className='tag badge rounded-pill text-bg-info'; tag.dataset.value=t; tag.innerHTML=`<span>${escapeHtml(t)}</span><button type="button" class="btn-close btn-close-white ms-2" aria-label="Удалить"></button>`; tag.querySelector('button').addEventListener('click',()=>{ currentParts=currentParts.filter(v=>v!==t); tag.remove(); }); tagsInput.insertBefore(tag, partsInput); }
+function clearTags(){ currentParts=[]; tagsInput.querySelectorAll('.tag').forEach(t=>t.remove()); }
+partsInput.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key==='Tab')&&partsInput.value.trim()!==''){ e.preventDefault(); addTag(partsInput.value); partsInput.value=''; }});
+partsInput.addEventListener('blur',()=>{ if(partsInput.value.trim()!==''){ addTag(partsInput.value); partsInput.value=''; }});
+tagsInput.addEventListener('click',()=>partsInput.focus());
 
-function getPhoneSuggestions(qd,limit=5){
-  if(!qd || qd.length<2) return [];
-  const seen=new Set(), out=[];
-  for(const o of orders){
-    const ph=o.phone||'';
-    if(seen.has(ph)) continue;
-    if(onlyDigits(ph).includes(qd)){ out.push(ph); seen.add(ph); if(out.length>=limit) break; }
-  }
-  return out;
-}
-function renderPhoneAc(container, items, highlightDigits, onPick){
-  if(!items.length){ container.classList.remove('show'); container.innerHTML=''; return; }
-  const h=str=>escapeHtml(str).replace(new RegExp(highlightDigits,'g'),m=>`<mark class="ac-mark">${m}</mark>`);
-  container.innerHTML=items.map((ph,i)=>`<button type="button" class="ac-item${i===0?' active':''}" data-val="${escapeHtml(ph)}"><i class="bi bi-telephone me-2"></i>${h(ph)}</button>`).join('');
-  container.classList.add('show');
-  container.querySelectorAll('.ac-item').forEach(btn=>{ btn.onclick=()=>onPick(btn.dataset.val); });
-}
+/* phone autocomplete — фикс выбора через pointerdown */
 function attachPhoneAutocomplete(inputEl){
-  let ac=inputEl.parentElement.querySelector('.ac-list');
-  if(!ac){ ac=document.createElement('div'); ac.className='ac-list'; inputEl.parentElement.classList.add('position-relative'); inputEl.parentElement.appendChild(ac); }
-  let currentItems=[], activeIndex=0, suppressUntil=0, lastPickedValue='';
-  const close=()=>{ ac.classList.remove('show'); ac.innerHTML=''; currentItems=[]; };
-  const isSuppressed=()=>Date.now()<suppressUntil;
-  const pick=(val)=>{ inputEl.value=val; lastPickedValue=val; updateDupHint&&updateDupHint(); close(); suppressUntil=Date.now()+250; inputEl.focus(); const len=inputEl.value.length; try{ inputEl.setSelectionRange(len,len);}catch{} inputEl.dispatchEvent(new Event('change',{bubbles:true})); };
-  const open=()=>{ const raw=inputEl.value.trim(); const qd=onlyDigits(raw); if(raw===lastPickedValue){ close(); return; } if(isSuppressed()) return; const items=getPhoneSuggestions(qd,5); if(items.length && items[0]===raw){ close(); return; } activeIndex=0; renderPhoneAc(ac,items,qd,pick); currentItems=items.slice(); };
-  const onInput=()=>{ if(inputEl.value.trim()!==lastPickedValue) suppressUntil=0; open(); };
-  const onFocus=()=> open(); const onBlur=()=> setTimeout(close,120);
-  const onKeyDown=e=>{ if(!ac.classList.contains('show')) return; if(e.key==='ArrowDown'){ e.preventDefault(); activeIndex=Math.min(activeIndex+1,currentItems.length-1); upd(); } else if(e.key==='ArrowUp'){ e.preventDefault(); activeIndex=Math.max(activeIndex-1,0); upd(); } else if(e.key==='Enter'){ const btn=ac.querySelector('.ac-item.active'); if(btn){ e.preventDefault(); pick(btn.dataset.val);} } else if(e.key==='Escape'){ close(); } };
-  function upd(){ const items=ac.querySelectorAll('.ac-item'); items.forEach((el,i)=>el.classList.toggle('active',i===activeIndex)); }
-  inputEl.addEventListener('input', debounce(onInput,80));
-  inputEl.addEventListener('focus', onFocus);
-  inputEl.addEventListener('blur', onBlur);
-  inputEl.addEventListener('keydown', onKeyDown);
-  if(!ac.dataset.outsideBound){ document.addEventListener('mousedown', e=>{ if(!ac.classList.contains('show')) return; const wrap=inputEl.parentElement; if(!wrap.contains(e.target)) close(); }); ac.dataset.outsideBound='1'; }
+  const ac = inputEl.parentElement.querySelector('.ac-list');
+  let suppressUntil = 0;
+  const close = () => { ac.classList.remove('show'); ac.innerHTML = ''; };
+  const open  = async () => {
+    const raw = inputEl.value.trim();
+    const qd  = (raw||'').replace(/\D/g,'');
+    if (Date.now() < suppressUntil || !qd || qd.length < 2) { close(); return; }
+    const list = await apiPhones(qd, 5);
+    if (!list.length || list[0] === raw) { close(); return; }
+    ac.innerHTML = list.map((ph,i)=>`
+      <button type="button" class="ac-item${i===0?' active':''}" data-val="${escapeHtml(ph)}">
+        <i class="bi bi-telephone me-2"></i>${escapeHtml(ph)}
+      </button>`).join('');
+    ac.classList.add('show');
+    ac.querySelectorAll('.ac-item').forEach(btn=>{
+      btn.addEventListener('pointerdown', (ev)=>{
+        ev.preventDefault();
+        inputEl.value = btn.dataset.val;
+        suppressUntil = Date.now() + 500;
+        close();
+        inputEl.dispatchEvent(new Event('input', {bubbles:true}));
+      });
+    });
+  };
+  inputEl.addEventListener('input', debounce(open, 80));
+  inputEl.addEventListener('focus', open);
+  document.addEventListener('mousedown', e=>{ if (ac.classList.contains('show') && !inputEl.parentElement.contains(e.target)) close(); });
+  inputEl.addEventListener('blur', ()=> setTimeout(close, 0));
 }
+attachPhoneAutocomplete(phoneEl);
 
-function statusBadgeHTML(status,id,overdue=false){
-  const map={ new:{cls:'badge-status status-new',text:'Новый'}, wip:{cls:'badge-status status-wip',text:'В работе'}, done:{cls:'badge-status status-done',text:'Готов'} };
+/* ===== Render helpers ===== */
+function statusBadgeHTML(status, id, overdue=false){
+  const map={ new:{cls:'badge-status status-new',text:'Новый'},
+              wip:{cls:'badge-status status-wip',text:'В работе'},
+              done:{cls:'badge-status status-done',text:'Готов'} };
   const m=map[status]||map.new, extra=overdue?' overdue-badge':'';
-  return `<span class="badge rounded-pill ${m.cls}${extra}" data-act="cycleStatus" data-id="${id}" data-status="${status}" title="Кликните, чтобы изменить статус">${m.text}</span>`;
+  return `<span class="badge rounded-pill ${m.cls}${extra}">${m.text}</span>`;
 }
 function deadlineCellHTML(o){
   if(!o.deadline) return '<span class="text-secondary">—</span>';
   const od=isOverdue(o.deadline,o.status);
   return `<span class="${od?'overdue':''}">${escapeHtml(o.deadline)}</span>`;
 }
-
-let currentParts=[];
-function addTag(text){
-  const t=String(text).trim(); if(!t) return;
-  if(t.includes(',')){ t.split(',').map(s=>s.trim()).filter(Boolean).forEach(addTag); return; }
-  if(currentParts.includes(t)) return; currentParts.push(t);
-  const tag=document.createElement('span'); tag.className='tag badge rounded-pill text-bg-info'; tag.dataset.value=t;
-  tag.innerHTML=`<span>${escapeHtml(t)}</span><button type="button" class="btn-close btn-close-white ms-2" aria-label="Удалить"></button>`;
-  tag.querySelector('button').addEventListener('click',()=>{ currentParts=currentParts.filter(v=>v!==t); tag.remove(); });
-  tagsInput.insertBefore(tag, partsInput);
-}
-function clearTags(){ currentParts=[]; tagsInput.querySelectorAll('.tag').forEach(t=>t.remove()); }
-partsInput.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key==='Tab')&&partsInput.value.trim()!==''){ e.preventDefault(); addTag(partsInput.value); partsInput.value=''; }});
-partsInput.addEventListener('blur',()=>{ if(partsInput.value.trim()!==''){ addTag(partsInput.value); partsInput.value=''; }});
-tagsInput.addEventListener('click',()=>partsInput.focus());
-
-function setSort(field){ if(sortField===field){ sortDir=(sortDir==='asc')?'desc':'asc'; } else { sortField=field; sortDir=(field==='date')?'desc':'asc'; } rebuildCacheAndReset(); }
-document.addEventListener('click',e=>{ const th=e.target.closest('th.sortable'); if(th&&th.dataset.sort) setSort(th.dataset.sort); });
-function applySortIndicators(){
-  document.querySelectorAll('th.sortable').forEach(th=>{ const icon=th.querySelector('.sort-indicator'); if(!icon) return; icon.className='bi sort-indicator';
-    if(th.dataset.sort===sortField){ icon.classList.add(sortDir==='asc'?'bi-caret-up-fill':'bi-caret-down-fill'); } else { icon.classList.add('bi-arrow-down-up'); }});
-}
-
-function buildFilteredSorted(){
-  const q=searchEl.value.trim().toLowerCase(), fs=filterStatusEl.value, fSup=filterSupplierEl.value;
-  let list=orders.filter(o=>{
-    const text=[o.phone,o.comment,o.supplier||'',o.deadline||'',...(Array.isArray(o.parts)?o.parts:[])].join(' ').toLowerCase();
-    return text.includes(q) && (!fs || o.status===fs) && (!fSup || o.supplier===fSup);
-  });
-  list=list.slice().sort((a,b)=>{
-    if(sortField==='date'){ const va=new Date(a.dateRaw||0).getTime(), vb=new Date(b.dateRaw||0).getTime(); return sortDir==='asc'?va-vb:vb-va; }
-    const da=toYMD(a.deadline), db=toYMD(b.deadline), na=da?da.getTime():Infinity, nb=db?db.getTime():Infinity;
-    return sortDir==='asc'?na-nb:nb-na;
-  });
-  return list;
-}
-
-function rebuildCacheAndReset(){
-  tooltipInstances.forEach(t=>t.dispose&&t.dispose()); tooltipInstances=[];
-  cachedList=buildFilteredSorted();
-  visibleCount=Math.min(INITIAL_COUNT,cachedList.length);
-  tableBody.innerHTML=''; endHint.classList.add('d-none'); infiniteHint.classList.add('d-none');
-  appendChunk(visibleCount); applySortIndicators();
-}
-
-function renderRowHTML(o){
+function rowHTML(o){
   const commentCell=o.comment ? `<span class="truncate" data-bs-toggle="tooltip" data-bs-title="${escapeHtml(o.comment)}">${escapeHtml(o.comment)}</span>` : '<span class="text-secondary">—</span>';
-  const deadlineCell=deadlineCellHTML(o);
   return `<tr data-id="${o.id}">
     <td><a href="tel:${escapeHtml(o.phone)}">${escapeHtml(o.phone)}</a></td>
     <td class="d-none d-md-table-cell">${escapeHtml(o.date)}</td>
     <td>${(o.parts||[]).map(p=>`<span class="badge rounded-pill text-bg-info me-1">${escapeHtml(p)}</span>`).join(' ')||'<span class="text-secondary">—</span>'}</td>
     <td class="d-none d-xl-table-cell">${commentCell}</td>
-    <td class="d-none d-lg-table-cell">${deadlineCell}</td>
+    <td class="d-none d-lg-table-cell">${deadlineCellHTML(o)}</td>
     <td>${o.supplier?`<span class="badge rounded-pill text-bg-light border">${escapeHtml(o.supplier)}</span>`:'<span class="text-secondary">—</span>'}</td>
-    <td>${statusBadgeHTML(o.status,o.id,isOverdue(o.deadline,o.status))}</td>
+    <td>${statusBadgeHTML(o.status, o.id, isOverdue(o.deadline,o.status))}</td>
     <td class="text-end">
-      <div class="btn-group btn-group-sm" role="group">
+      <div class="btn-group btn-group-sm">
         <button class="btn btn-outline-primary" data-act="edit" data-id="${o.id}" title="Редактировать"><i class="bi bi-pencil"></i></button>
-        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"></button>
+        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"></button>
         <ul class="dropdown-menu dropdown-menu-end">
           <li class="dropdown-header">Действия</li>
           <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="new">Сделать «Новый»</button></li>
           <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="wip">Сделать «В работе»</button></li>
           <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="done">Сделать «Готов»</button></li>
-          <li><button class="dropdown-item" data-act="print" data-id="${o.id}"><i class="bi bi-printer me-2"></i>Печать наклейки</button></li>
+          <li><button class="dropdown-item" data-act="print" data-id="${o.id}"><i class="bi bi-printer me-2"></i>Печать наклеек</button></li>
           <li><hr class="dropdown-divider"></li>
           <li><button class="dropdown-item text-danger" data-act="delete" data-id="${o.id}">Удалить</button></li>
         </ul>
@@ -321,135 +348,43 @@ function renderRowHTML(o){
     </td>
   </tr>`;
 }
-function renderEditRowHTML(o){
-  const id=o.id, overdue=isOverdue(o.deadline,o.status);
-  if(!editParts.has(id)) editParts.set(id, Array.isArray(o.parts)?[...o.parts]:[]);
-  return `<tr data-id="${id}">
-    <td class="position-relative">
-      <input id="editPhone-${id}" class="form-control form-control-sm phone-input" type="tel" value="${escapeHtml(o.phone)}" placeholder="+371XXXXXXXX">
-      <div class="ac-list"></div>
-    </td>
-    <td class="d-none d-md-table-cell"><div class="text-secondary small">${escapeHtml(o.date)}</div></td>
-    <td>
-      <div id="tagsInput-${id}" class="tags-input form-control form-control-sm d-flex flex-wrap gap-2" data-role="tagsEdit" data-id="${id}">
-        <input id="partsInput-${id}" class="border-0 flex-grow-1" type="text" data-role="partsInputEdit" data-id="${id}" placeholder="Введите деталь и Enter">
-      </div>
-    </td>
-    <td class="d-none d-xl-table-cell"><textarea id="editComment-${id}" class="form-control form-control-sm" rows="2" placeholder="Комментарий">${o.comment?escapeHtml(o.comment):''}</textarea></td>
-    <td class="d-none d-lg-table-cell"><input id="editDeadline-${id}" class="form-control form-control-sm ${overdue?'overdue':''}" type="date" value="${o.deadline?escapeHtml(o.deadline):''}"></td>
-    <td>
-      <select id="editSupplier-${id}" class="form-select form-select-sm">
-        <option value="">— не выбран —</option>
-        ${["Stiga","Husqvarna","AL-KO","Briggs & Stratton","Makita","Oregon","Partner","Gardena","Stihl","Echo","MTD"].map(s=>`<option ${s===(o.supplier||'')?'selected':''}>${s}</option>`).join('')}
-      </select>
-    </td>
-    <td>${statusBadgeHTML(o.status,o.id,overdue)}</td>
-    <td class="text-end">
-      <div class="btn-group btn-group-sm">
-        <button class="btn btn-primary" data-act="save" data-id="${id}">Сохранить</button>
-        <button class="btn btn-outline-secondary" data-act="cancel" data-id="${id}">Отмена</button>
-      </div>
-    </td>
-  </tr>`;
+function updateRowDOM(o){
+  const tr = tableBody.querySelector(`tr[data-id="${o.id}"]`);
+  if(!tr) return;
+  tr.children[3].innerHTML = o.comment
+    ? `<span class="truncate" data-bs-toggle="tooltip" data-bs-title="${escapeHtml(o.comment)}">${escapeHtml(o.comment)}</span>`
+    : '<span class="text-secondary">—</span>';
+  tr.children[4].innerHTML = deadlineCellHTML(o);
+  tr.children[6].innerHTML = statusBadgeHTML(o.status, o.id, isOverdue(o.deadline,o.status));
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el=> new bootstrap.Tooltip(el));
 }
 
-function appendChunk(countToShow){
-  const start=tableBody.rows.length, end=Math.min(cachedList.length,countToShow);
-  if(start>=end){ endHint.classList.toggle('d-none', !(cachedList.length && start>=cachedList.length)); return; }
-  const frag=document.createDocumentFragment();
-  for(let i=start;i<end;i++){
-    const o=cachedList[i], html=(editId===o.id)?renderEditRowHTML(o):renderRowHTML(o);
-    const temp=document.createElement('tbody'); temp.innerHTML=html.trim(); frag.appendChild(temp.firstElementChild);
-  }
-  tableBody.appendChild(frag);
-  const newTooltipEls=tableBody.querySelectorAll('tr:nth-last-child(-n+'+(end-start)+') [data-bs-toggle="tooltip"]');
-  newTooltipEls.forEach(el=>{ tooltipInstances.push(new bootstrap.Tooltip(el,{trigger:'hover focus'})); });
-  tableBody.querySelectorAll('tr:nth-last-child(-n+'+(end-start)+') .phone-input').forEach(attachPhoneAutocomplete);
-  visibleCount=end; infiniteHint.classList.add('d-none'); endHint.classList.toggle('d-none', !(cachedList.length && visibleCount>=cachedList.length));
-  applySortIndicators();
-}
-
-function mountEditTags(id){
-  const container=document.getElementById(`tagsInput-${id}`), input=document.getElementById(`partsInput-${id}`); if(!container||!input) return;
-  container.addEventListener('click',()=>input.focus()); container.querySelectorAll('.tag').forEach(x=>x.remove());
-  const arr=editParts.get(id)||[]; arr.forEach(p=>{ const tag=document.createElement('span'); tag.className='tag badge rounded-pill text-bg-info';
-    tag.innerHTML=`<span>${escapeHtml(p)}</span><button type="button" class="btn-close btn-close-white ms-2" data-role="removeTagEdit" data-id="${id}" data-part="${escapeHtml(p)}" aria-label="Удалить"></button>`;
-    container.insertBefore(tag,input);
-  });
-  input.onkeydown=e=>{ if((e.key==='Enter'||e.key==='Tab')&&input.value.trim()!==''){ e.preventDefault(); addTagEdit(id,input.value); input.value=''; } };
-  input.onblur=()=>{ if(input.value.trim()!==''){ addTagEdit(id,input.value); input.value=''; } };
-}
-function addTagEdit(id,text){
-  const t=String(text).trim(); if(!t) return;
-  if(t.includes(',')){ t.split(',').map(s=>s.trim()).filter(Boolean).forEach(s=>addTagEdit(id,s)); return; }
-  const arr=editParts.get(id)||[]; if(arr.includes(t)) return; arr.push(t); editParts.set(id,arr); mountEditTags(id);
-}
-function removeTagEdit(id,part){ const arr=editParts.get(id)||[]; editParts.set(id,arr.filter(p=>p!==part)); mountEditTags(id); }
-
-/* === ПЕЧАТЬ НАКЛЕЙКИ: без <script> внутри HTML-строки === */
+/* ===== Label (печать) ===== */
 function buildLabelHTML(order){
   const safe = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const phone = safe(order.phone);
-  // форматируем дату заявки из dateRaw (только дата)
-  const created = (() => {
-    try {
-      const d = new Date(order.dateRaw || Date.now());
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const day = String(d.getDate()).padStart(2,'0');
-      return `${day}.${m}.${y}`; // DD.MM.YYYY
-    } catch { return ''; }
-  })();
-
-  // короткое примечание на одну строку (из комментария)
-  const note = (() => {
-    const txt = (order.comment || '').trim();
-    if (!txt) return '';
-    const max = 60; // символов на этикетку
-    return safe(txt.length > max ? txt.slice(0, max - 1) + '…' : txt);
-  })();
-
-  // счётчик позиций (если есть parts)
+  const created = (()=>{ const d=new Date(order.dateRaw||Date.now()); const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear(); return `${dd}.${mm}.${yy}`; })();
+  const note = (()=>{ const t=(order.comment||'').trim(); if(!t) return ''; const max=60; return safe(t.length>max?t.slice(0,max-1)+'…':t); })();
   const partsCount = Array.isArray(order.parts) ? order.parts.length : 0;
-  const rightMeta = partsCount > 0 ? `Позиций: ${partsCount}` : '';
-
+  const rightMeta = partsCount>0 ? `Позиций: ${partsCount}` : '';
   return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Label</title>
-  <style>
-    @page { size: 58mm 40mm; margin: 3mm; }
-    * { box-sizing: border-box; }
-    body {
-      font: 12px/1.25 -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      margin: 0; color:#000;
-    }
-    .label { width:100%; height:100%; display:flex; flex-direction:column; gap:4px; }
-    .row { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
-    .phone { font-size: 16px; font-weight: 700; }
-    .date  { font-size: 10px; white-space:nowrap; }
-    .note  { font-size: 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .util  { font-size: 10px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-    .checks { display:flex; gap:8px; }
-    .box { display:inline-block; width:9px; height:9px; border:1px solid #000; margin-right:4px; vertical-align:middle; }
-    hr { border:0; border-top:1px dashed #000; margin:2px 0; }
-  </style>
-</head>
+<html><head><meta charset="utf-8"><title>Label</title>
+<style>
+  @page { size: 58mm 40mm; margin: 3mm; }
+  *{box-sizing:border-box} body{font:12px/1.25 -apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#000}
+  .label{width:100%;height:100%;display:flex;flex-direction:column;gap:4px}
+  .row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .phone{font-size:16px;font-weight:700}.date{font-size:10px;white-space:nowrap}
+  .note{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .util{font-size:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .checks{display:flex;gap:8px}.box{display:inline-block;width:9px;height:9px;border:1px solid #000;margin-right:4px;vertical-align:middle}
+  hr{border:0;border-top:1px dashed #000;margin:2px 0}
+</style></head>
 <body onload="window.print(); setTimeout(function(){ window.close(); }, 400);" onafterprint="window.close()">
   <div class="label">
-    <!-- верхняя строка: телефон слева, дата заявки справа -->
-    <div class="row">
-      <div class="phone">${phone}</div>
-      <div class="date">Заявка: ${created}</div>
-    </div>
-
-    <!-- примечание (если есть) -->
-    ${note ? `<div class="note">${note}</div>` : ''}
-
+    <div class="row"><div class="phone">${phone}</div><div class="date">Заявка: ${created}</div></div>
+    ${note?`<div class="note">${note}</div>`:''}
     <hr>
-
-    <!-- служебная строка: чекбоксы для пометок + счётчик позиций -->
     <div class="util">
       <div class="checks">
         <span><span class="box"></span>Звонок</span>
@@ -459,79 +394,134 @@ function buildLabelHTML(order){
       <div>${rightMeta}</div>
     </div>
   </div>
-</body>
-</html>`;
+</body></html>`;
 }
-function printOrderLabel(orderId){
-  const o=orders.find(x=>x.id===orderId); if(!o) return;
-  const win=window.open('', '_blank', 'width=420,height=480'); if(!win){ alert('Браузер заблокировал окно печати'); return; }
-  win.document.open(); win.document.write(buildLabelHTML(o)); win.document.close();
+function printOrderLabel(id){
+  const o = items.find(x=>x.id===id); if(!o) return;
+  const w = window.open('', '_blank', 'width=420,height=480'); if(!w){ alert('Блокировано всплывающее окно'); return; }
+  w.document.open(); w.document.write(buildLabelHTML(o)); w.document.close();
 }
 
-document.addEventListener('click', e=>{
-  const rm=e.target.closest('[data-role="removeTagEdit"]'); if(rm){ removeTagEdit(rm.dataset.id, rm.dataset.part); return; }
-  const el=e.target.closest('[data-act]'); if(!el) return;
-  const act=el.dataset.act, id=el.dataset.id, idx=orders.findIndex(x=>x.id===id);
-  if(act==='edit'){
-    if(editId && editId!==id){ alert('Сначала сохраните или отмените текущее редактирование.'); return; }
-    editId=id; const row=tableBody.querySelector(`tr[data-id="${id}"]`);
-    if(row){ const o=orders[idx]; row.outerHTML=renderEditRowHTML(o); const newRow=tableBody.querySelector(`tr[data-id="${id}"]`);
-      const phoneInput=newRow.querySelector('.phone-input'); if(phoneInput) attachPhoneAutocomplete(phoneInput); mountEditTags(id); applySortIndicators(); }
-    return;
-  }
-  if(act==='delete'){ if(idx!==-1 && confirm('Удалить заказ?')){ orders.splice(idx,1); save(); rebuildCacheAndReset(); } return; }
-  if(act==='setStatus'){ const item=orders.find(x=>x.id===id); if(item){ item.status=el.dataset.val; save(); } rebuildCacheAndReset(); return; }
-  if(act==='cycleStatus'){
-    const item=orders.find(x=>x.id===id); if(!item) return;
-    const cur=STATUS_LIST.indexOf(item.status), next=STATUS_LIST[(cur+1)%STATUS_LIST.length]; item.status=next; save();
-    const tr=tableBody.querySelector(`tr[data-id="${id}"]`);
-    if(tr){
-      const statusTd=tr.querySelector('td:nth-last-child(2)'); if(statusTd){ statusTd.innerHTML=statusBadgeHTML(next,id,isOverdue(item.deadline,item.status)); }
-      const deadlineTd=tr.querySelector('td:nth-child(5)');   if(deadlineTd){ deadlineTd.innerHTML=deadlineCellHTML(item); }
-    }
-    return;
-  }
-  if(act==='print'){ printOrderLabel(id); return; }
-  if(act==='save'){
-    const phone=document.getElementById(`editPhone-${id}`).value.trim();
-    const commentE=document.getElementById(`editComment-${id}`); const comment=commentE?commentE.value.trim():'';
-    const supplierE=document.getElementById(`editSupplier-${id}`); const supplier=supplierE?supplierE.value:'';
-    const deadlineE=document.getElementById(`editDeadline-${id}`); const deadline=deadlineE?deadlineE.value:'';
-    const parts=editParts.get(id)||[];
-    if(!phone){ alert('Укажите телефон'); return; }
-    const item=orders.find(x=>x.id===id);
-    if(item){ item.phone=normalizePhone(phone); item.comment=comment; item.supplier=supplier; item.deadline=deadline; item.parts=[...parts]; save(); }
-    editId=null; editParts.delete(id); rebuildCacheAndReset(); return;
-  }
-  if(act==='cancel'){ editId=null; editParts.delete(id); rebuildCacheAndReset(); return; }
-});
+/* ===== Fetch & render ===== */
+async function reload(fromStart=true){
+  if (fromStart){ items=[]; offset=0; tableBody.innerHTML=''; endHint.classList.add('d-none'); }
+  if (loading) return; loading=true; infiniteHint.classList.remove('d-none');
 
-function hasPhoneDuplicateSoft(p){ return orders.some(o=>o.phone===p); }
-form.addEventListener('submit', e=>{
+  const batch = await apiList({ q:filters.q, status:filters.status, supplier:filters.supplier, sort:sortField, dir:sortDir, limit:fromStart?LIMIT:STEP, offset });
+  items = items.concat(batch); offset += batch.length;
+
+  const frag=document.createDocumentFragment();
+  batch.forEach(o=>{ const t=document.createElement('tbody'); t.innerHTML=rowHTML(o); frag.appendChild(t.firstElementChild); });
+  tableBody.appendChild(frag);
+
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el=> new bootstrap.Tooltip(el));
+  infiniteHint.classList.add('d-none');
+  if (batch.length===0) endHint.classList.remove('d-none');
+  loading=false;
+}
+
+/* ===== Handlers ===== */
+form.addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const p=normalizePhone(phoneEl.value.trim()); if(hasPhoneDuplicateSoft(p)) dupHint.classList.remove('d-none');
-  const order={ id:uid(), phone:p, date:formatDate(), dateRaw:new Date().toISOString(), parts:[...currentParts], comment:commentEl.value.trim(), status:'new', supplier:supplierEl.value||'', deadline:deadlineEl.value||'' };
-  if(!order.phone){ alert('Укажите телефон'); return; }
-  orders.unshift(order); save(); form.reset(); clearTags(); dupHint.classList.add('d-none'); phoneEl.focus(); rebuildCacheAndReset();
+  const order = {
+    phone: normalizePhone(phoneEl.value.trim()),
+    comment: commentEl.value.trim(),
+    status: 'new',
+    supplier: supplierEl.value || '',
+    deadline: deadlineEl.value || '',
+    parts: [...currentParts]
+  };
+  if (!order.phone){ alert('Укажите телефон'); return; }
+  const res = await apiCreate(order);
+  if (!res.ok){ alert('Ошибка создания'); return; }
+  if (res.duplicate) { dupHint.classList.remove('d-none'); setTimeout(()=>dupHint.classList.add('d-none'), 3000); }
+  form.reset(); clearTags(); phoneEl.focus();
+  await reload(true);
 });
 clearFormBtn.addEventListener('click',()=>{ form.reset(); clearTags(); dupHint.classList.add('d-none'); phoneEl.focus(); });
 
-const triggerRebuild=()=>rebuildCacheAndReset();
-searchEl.addEventListener('input', debounce(triggerRebuild,150));
-filterStatusEl.addEventListener('change', triggerRebuild);
-filterSupplierEl.addEventListener('change', triggerRebuild);
-wipeBtn.addEventListener('click',()=>{ if(confirm('Удалить все записи?')){ orders=[]; save(); rebuildCacheAndReset(); } });
+document.addEventListener('click', async (e)=>{
+  const el = e.target.closest('[data-act]'); if(!el) return;
+  const id = parseInt(el.dataset.id||'0',10);
+  const act = el.dataset.act;
 
-function maybeLoadMore(){
-  if(isLoadingMore) return; if(visibleCount>=cachedList.length) return;
-  const nearBottom=(window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 200); if(!nearBottom) return;
-  isLoadingMore=true; infiniteHint.classList.remove('d-none');
-  setTimeout(()=>{ appendChunk(visibleCount + STEP_COUNT); isLoadingMore=false; }, 50);
-}
-window.addEventListener('scroll', debounce(maybeLoadMore,100));
+  if (act==='delete'){
+    if (!confirm('Удалить заказ?')) return;
+    const res = await apiDelete(id);
+    if (res.ok) { await reload(true); } else { alert('Не удалилось'); }
+    return;
+  }
 
-attachPhoneAutocomplete(phoneEl);
-rebuildCacheAndReset();
+  if (act==='edit'){
+    const item = items.find(x=>x.id===id); if(!item) return;
+    document.getElementById('editId').value = item.id;
+    document.getElementById('editPhone').value = item.phone;
+    document.getElementById('editComment').value = item.comment || '';
+    document.getElementById('editDeadline').value = item.deadline || '';
+    document.getElementById('editSupplier').value = item.supplier || '';
+    [...document.querySelectorAll('input[name="editStatus"]')].forEach(r=> r.checked = (r.value===item.status));
+    const modal = new bootstrap.Modal(document.getElementById('editModal')); modal.show();
+
+    const saveBtn = document.getElementById('editSaveBtn');
+    const handler = async ()=>{
+      const upd = {
+        id: item.id,
+        phone: normalizePhone(document.getElementById('editPhone').value.trim()),
+        comment: document.getElementById('editComment').value.trim(),
+        deadline: document.getElementById('editDeadline').value || '',
+        supplier: document.getElementById('editSupplier').value || '',
+        status: (document.querySelector('input[name="editStatus"]:checked')||{value:item.status}).value,
+        parts: item.parts
+      };
+      const res = await apiUpdate(upd);
+      if (res.ok){
+        if (res.duplicate) { dupHint.classList.remove('d-none'); setTimeout(()=>dupHint.classList.add('d-none'), 3000); }
+        Object.assign(item, upd);
+        updateRowDOM(item);
+        bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+      } else { alert('Не сохранилось'); }
+      saveBtn.removeEventListener('click', handler);
+    };
+    saveBtn.addEventListener('click', handler);
+    return;
+  }
+
+  if (act==='setStatus'){
+    const item = items.find(x=>x.id===id); if(!item) return;
+    const res = await apiUpdate({ id, phone:item.phone, comment:item.comment, status:el.dataset.val, supplier:item.supplier, deadline:item.deadline, parts:item.parts });
+    if (res.ok){ item.status = el.dataset.val; updateRowDOM(item); } else { alert('Не сохранилось'); }
+    return;
+  }
+
+  if (act==='print'){ printOrderLabel(id); return; }
+});
+
+/* фильтры/поиск/сортировка */
+searchEl.addEventListener('input', debounce(()=>{ filters.q=searchEl.value.trim(); reload(true); }, 200));
+filterStatusEl.addEventListener('change', ()=>{ filters.status=filterStatusEl.value; reload(true); });
+filterSupplierEl.addEventListener('change', ()=>{ filters.supplier=filterSupplierEl.value; reload(true); });
+document.addEventListener('click', (e)=>{
+  const th = e.target.closest('th.sortable'); if(!th) return;
+  const fld = th.dataset.sort || 'created_at';
+  if (sortField===fld) sortDir = (sortDir==='asc') ? 'desc' : 'asc';
+  else { sortField=fld; sortDir = (fld==='created_at') ? 'desc' : 'asc'; }
+  reload(true);
+});
+
+/* бесконечная прокрутка */
+window.addEventListener('scroll', debounce(async ()=>{
+  if (loading) return;
+  if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 200)){
+    await reload(false);
+  }
+}, 120));
+
+/* кнопка "наверх" */
+window.addEventListener('scroll', ()=>{ scrollTopBtn.style.display = (window.scrollY > 300) ? 'block' : 'none'; });
+scrollTopBtn.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
+
+/* init */
+reload(true);
 </script>
 </body>
 </html>
