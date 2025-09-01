@@ -1,4 +1,4 @@
-<?php /* index.php — фронт для Стола заказов (PHP+MySQL) */ ?>
+<?php /* index.php — Стол заказов (PHP+MySQL) — без скидочной системы */ ?>
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -12,61 +12,89 @@
 <style>
 :root{
   --bg:#f8fafc; --txt:#0f172a;
-  --st-new-bg:#fde68a;   --st-new-tx:#7c5a00;
-  --st-wip-bg:#bae6fd;   --st-wip-tx:#0b4c6a;
-  --st-done-bg:#bbf7d0;  --st-done-tx:#14532d;
-  --overdue-bg:#fee2e2;  --overdue-bd:#ef9a9a;
+  --st-new-bg:#fde68a;        --st-new-tx:#7c5a00;
+  --st-conf-bg:#bfdbfe;       --st-conf-tx:#1e40af;
+  --st-instock-bg:#bbf7d0;    --st-instock-tx:#14532d;
+  --st-issued-bg:#d1d5db;     --st-issued-tx:#1f2937;
+  --st-canceled-bg:#fecaca;   --st-canceled-tx:#7f1d1d;
+  --overdue-bg:#fee2e2;       --overdue-bd:#ef9a9a;
   --ac-bg:#ffffff; --ac-bd:#e5e7eb; --ac-hover:#f3f4f6; --ac-active:#e5e7eb;
 }
+*{box-sizing:border-box}
 body{ color:var(--txt); background:var(--bg); }
-.tags-input{ cursor:text; min-height:42px; align-items:center; }
-.tags-input input{ outline:none; min-width:140px; }
 table.table td, table.table th{ vertical-align:top; }
 .truncate{ display:inline-block; max-width: 40ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 
-/* Статусы — крупнее и не кликабельные */
+/* верхняя перекладина */
+.topbar{ position:sticky; top:0; z-index:1030; background:#fff; border-bottom:1px solid #e9ecef; }
+.topbar .container{ display:flex; gap:.5rem; align-items:center; justify-content:space-between; padding:.5rem 1rem; }
+
+/* tags-input */
+.tags-input{ cursor:text; min-height:44px; align-items:center; }
+.tags-input input{ outline:none; min-width:120px; }
+
+/* статус — крупный, не кликабельный */
 .badge-status{
   cursor: default;
   user-select: none;
   font-weight: 600;
   border: 1px solid transparent;
-  padding: .45rem .75rem;
-  font-size: .95rem;
+  padding: .5rem .8rem;
+  font-size: 1rem;
 }
-.badge-status.status-new{  background:var(--st-new-bg);  color:var(--st-new-tx); }
-.badge-status.status-wip{  background:var(--st-wip-bg);  color:var(--st-wip-tx); }
-.badge-status.status-done{ background:var(--st-done-bg); color:var(--st-done-tx); }
+.status-new{       background:var(--st-new-bg);      color:var(--st-new-tx); }
+.status-confirmed{ background:var(--st-conf-bg);     color:var(--st-conf-tx); }
+.status-instock{   background:var(--st-instock-bg);  color:var(--st-instock-tx); }
+.status-issued{    background:var(--st-issued-bg);   color:var(--st-issued-tx); }
+.status-canceled{  background:var(--st-canceled-bg); color:var(--st-canceled-tx); }
 
 .overdue{ background:var(--overdue-bg)!important; padding:.1rem .4rem; border-radius:.375rem; }
 .overdue-badge{ box-shadow: 0 0 0 2px var(--overdue-bd) inset; }
 
+/* сортировка */
 th.sortable{ cursor:pointer; user-select:none; }
 th.sortable .sort-indicator{ margin-left:.25rem; }
 
-.ac-list{ position:absolute; z-index: 10; top: 100%; left: 0; right: 0; background: var(--ac-bg); border: 1px solid var(--ac-bd); border-top: none; border-radius: 0 0 .5rem .5rem; box-shadow: 0 4px 12px rgba(0,0,0,.06); display: none; max-height: 220px; overflow: auto; }
+/* автодоп телефонов */
+.ac-list{ position:absolute; z-index: 10; top: 100%; left: 0; right: 0; background: var(--ac-bg); border: 1px solid var(--ac-bd); border-top: none; border-radius: 0 0 .5rem .5rem; box-shadow: 0 4px 12px rgba(0,0,0,.06); display: none; max-height: 240px; overflow: auto; }
 .ac-list.show{ display:block; }
-.ac-item{ display:flex; align-items:center; gap:.25rem; width:100%; padding:.5rem .75rem; border:0; background:transparent; text-align:left; font-size:.95rem; }
+.ac-item{ display:flex; align-items:center; gap:.5rem; width:100%; padding:.75rem 1rem; border:0; background:transparent; text-align:left; font-size:1rem; }
 .ac-item:hover{ background:var(--ac-hover); } .ac-item.active{ background:var(--ac-active); }
 
-@media (max-width:576px){
-  .btn-group>.btn,.btn{ padding:.45rem .6rem; }
-  .truncate{ max-width:26ch; }
-}
+/* кнопка наверх */
 #scrollTopBtn{ position:fixed; bottom:20px; right:20px; display:none; z-index:1050; }
 
-/* верхняя перекладина */
-.topbar{ position:sticky; top:0; z-index:1030; background:#fff; border-bottom:1px solid #e9ecef; }
-.topbar .container{ display:flex; gap:.5rem; align-items:center; justify-content:space-between; padding:.5rem 1rem; }
+/* ====== MOBILE FIRST ====== */
+@media (max-width: 992px){
+  .form-control, .form-select, .btn{ font-size:1rem; }
+  .btn-group>.btn{ padding:.6rem .85rem; }
+}
+@media (max-width: 576px){
+  .card .table-responsive{ border:0; }
+  table.table{ border:0; }
+  thead.table-light{ display:none; }
+  table.table tr{ display:block; background:#fff; margin:10px 12px; padding:12px; border-radius:12px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+  table.table td{ display:flex; width:100%; border:0 !important; padding:.4rem 0; gap:.5rem; align-items:baseline; }
+  table.table td::before{
+    content: attr(data-label);
+    min-width: 98px;
+    font-weight:600;
+    color:#64748b;
+    flex: 0 0 auto;
+  }
+  .truncate{ max-width: 100%; }
+  .card-body .form-select, .card-body .form-control{ font-size:1rem; padding:.75rem 1rem; }
+  .btn-group.btn-group-sm .btn, .dropdown-menu .dropdown-item{ padding:.8rem 1rem; font-size:1rem; }
+  .topbar .container{ padding:.5rem .75rem; }
+}
 </style>
 </head>
 <body>
 
-<!-- Перекладина с кнопкой назад в склад -->
+<!-- Перекладина (поправь href под свой путь) -->
 <div class="topbar">
   <div class="container">
-    <a class="btn btn-outline-secondary btn-sm" href="/warehouse/">
-      ← Электронный склад
-    </a>
+    <a class="btn btn-outline-secondary btn-sm" href="/warehouse/">← Электронный склад</a>
     <span class="text-secondary small">Стол заказов</span>
   </div>
 </div>
@@ -75,10 +103,11 @@ th.sortable .sort-indicator{ margin-left:.25rem; }
   <div class="d-flex flex-column flex-md-row align-items-md-end gap-2 mb-3">
     <div class="me-auto">
       <h1 class="h3 mb-1">Стол заказов</h1>
-      <div class="text-secondary small">PHP + MySQL. Ленивая подгрузка, автодоп. телефона, печать наклеек.</div>
+      <div class="text-secondary small">PHP + MySQL. Поиск, фильтры, дедлайн, теги, печать, lazy-load.</div>
     </div>
   </div>
 
+  <!-- форма добавления -->
   <div class="card shadow-sm mb-3">
     <div class="card-body">
       <form id="orderForm" autocomplete="off">
@@ -107,19 +136,20 @@ th.sortable .sort-indicator{ margin-left:.25rem; }
             <textarea id="comment" class="form-control" rows="2" placeholder="Короткое примечание для этикетки"></textarea>
           </div>
 
-          <div class="col-12 col-md-4">
+          <div class="col-6 col-md-4">
             <label for="deadline" class="form-label">Срок (дедлайн)</label>
             <input type="date" id="deadline" class="form-control">
           </div>
 
-          <div class="col-12 col-md-4">
+          <div class="col-6 col-md-4">
             <label for="supplier" class="form-label">Поставщик</label>
             <select id="supplier" class="form-select">
               <option value="">— не выбран —</option>
-              <option>Stiga</option><option>Husqvarna</option><option>AL-KO</option>
-              <option>Briggs &amp; Stratton</option><option>Makita</option><option>Oregon</option>
-              <option>Partner</option><option>Gardena</option><option>Stihl</option>
-              <option>Echo</option><option>MTD</option>
+              <option>Sils</option><option>Husqvarna</option><option>AL-KO</option>
+              <option>Kober</option><option>4C</option><option>Rags</option>
+              <option>LatWork</option><option>Ginalas</option><option>Viskas Sodinimkas</option>
+              <option>Samalin</option><option>Hards</option><option>Grif</option>
+              <option>GJ Grupa</option><option>Stokker</option>
             </select>
           </div>
 
@@ -132,24 +162,32 @@ th.sortable .sort-indicator{ margin-left:.25rem; }
     </div>
   </div>
 
+  <!-- фильтры -->
   <div class="card shadow-sm mb-3">
     <div class="card-body d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
       <input id="search" class="form-control flex-grow-1" type="text" placeholder="Поиск по телефону, комментариям, тегам, поставщику">
       <div class="d-flex gap-2 w-100 w-lg-auto">
         <select id="filterStatus" class="form-select">
-          <option value="">Все статусы</option><option value="new">Новый</option><option value="wip">В работе</option><option value="done">Готов</option>
+          <option value="">Все статусы</option>
+          <option value="new">Новый</option>
+          <option value="confirmed">Подтверждён</option>
+          <option value="instock">На складе</option>
+          <option value="issued">Выдан клиенту</option>
+          <option value="canceled">Отменён</option>
         </select>
         <select id="filterSupplier" class="form-select">
           <option value="">Все поставщики</option>
-          <option>Stiga</option><option>Husqvarna</option><option>AL-KO</option>
-          <option>Briggs &amp; Stratton</option><option>Makita</option><option>Oregon</option>
-          <option>Partner</option><option>Gardena</option><option>Stihl</option>
-          <option>Echo</option><option>MTD</option>
+          <option>Sils</option><option>Husqvarna</option><option>AL-KO</option>
+          <option>Kober</option><option>4C</option><option>Rags</option>
+          <option>LatWork</option><option>Ginalas</option><option>Viskas Sodinimkas</option>
+          <option>Samalin</option><option>Hards</option><option>Grif</option>
+          <option>GJ Grupa</option><option>Stokker</option>
         </select>
       </div>
     </div>
   </div>
 
+  <!-- таблица / карточки -->
   <div class="card shadow-sm">
     <div class="table-responsive">
       <table class="table align-middle mb-0">
@@ -173,11 +211,11 @@ th.sortable .sort-indicator{ margin-left:.25rem; }
   </div>
 </div>
 
-<button id="scrollTopBtn" class="btn btn-primary rounded-circle">↑</button>
+<button id="scrollTopBtn" class="btn btn-primary rounded-circle" aria-label="Наверх">↑</button>
 
 <!-- Модалка редактирования -->
 <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Редактирование заказа</h5>
@@ -186,14 +224,24 @@ th.sortable .sort-indicator{ margin-left:.25rem; }
       <div class="modal-body">
         <form id="editForm" autocomplete="off">
           <input type="hidden" id="editId">
+
           <div class="mb-3">
             <label class="form-label">Телефон</label>
             <input type="tel" id="editPhone" class="form-control">
           </div>
+
           <div class="mb-3">
             <label class="form-label">Комментарий</label>
             <textarea id="editComment" class="form-control" rows="2"></textarea>
           </div>
+
+          <div class="mb-3">
+            <label class="form-label">Детали (теги)</label>
+            <div id="editTagsInput" class="tags-input form-control d-flex flex-wrap gap-2">
+              <input id="editPartsInput" class="border-0 flex-grow-1" type="text" placeholder="Введите деталь и Enter (можно через запятую)">
+            </div>
+          </div>
+
           <div class="row g-3">
             <div class="col-6">
               <label class="form-label">Срок (дедлайн)</label>
@@ -203,19 +251,23 @@ th.sortable .sort-indicator{ margin-left:.25rem; }
               <label class="form-label">Поставщик</label>
               <select id="editSupplier" class="form-select">
                 <option value="">— не выбран —</option>
-                <option>Stiga</option><option>Husqvarna</option><option>AL-KO</option>
-                <option>Briggs &amp; Stratton</option><option>Makita</option><option>Oregon</option>
-                <option>Partner</option><option>Gardena</option><option>Stihl</option>
-                <option>Echo</option><option>MTD</option>
+                <option>Sils</option><option>Husqvarna</option><option>AL-KO</option>
+                <option>Kober</option><option>4C</option><option>Rags</option>
+                <option>LatWork</option><option>Ginalas</option><option>Viskas Sodinimkas</option>
+                <option>Samalin</option><option>Hards</option><option>Grif</option>
+                <option>GJ Grupa</option><option>Stokker</option>
               </select>
             </div>
           </div>
+
           <div class="mt-3">
             <label class="form-label">Статус</label>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
               <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="new"> Новый</label>
-              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="wip"> В работе</label>
-              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="done"> Готов</label>
+              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="confirmed"> Подтверждён</label>
+              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="instock"> На складе</label>
+              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="issued"> Выдан клиенту</label>
+              <label class="form-check"><input class="form-check-input" type="radio" name="editStatus" value="canceled"> Отменён</label>
             </div>
           </div>
         </form>
@@ -230,6 +282,9 @@ th.sortable .sort-indicator{ margin-left:.25rem; }
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+(function(){
+'use strict';
+
 /* ===== API ===== */
 async function apiList(params={}){ const url=new URL('orders.php',location.href); url.searchParams.set('action','list'); Object.entries(params).forEach(([k,v])=> (v!=='' && v!=null) && url.searchParams.set(k,v)); const r=await fetch(url); const j=await r.json(); return j.items||[]; }
 async function apiCreate(order){ const r=await fetch('orders.php?action=create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(order)}); return r.json(); }
@@ -261,21 +316,69 @@ const scrollTopBtn=document.getElementById('scrollTopBtn');
 
 /* ===== Utils ===== */
 const escapeHtml=s=>String(s).replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const onlyDigits=s=>(s||'').replace(/\D/g,'');
 const normalizePhone=v=>{ let p=String(v).trim(); if(!p) return ''; if(!p.startsWith('+371') && /^\d+$/.test(p)) p='+371'+p; return p; };
 const toYMD=s=>{ if(!s) return null; const [y,m,d]=s.split('-').map(Number); if(!y||!m||!d) return null; return new Date(y,m-1,d); };
-const isOverdue=(deadline,status)=>{ if(!deadline||status==='done')return false; const d=toYMD(deadline); if(!d) return false; const t=new Date(); t.setHours(0,0,0,0); return d<t; };
+const isOverdue=(deadline,status)=>{ if(!deadline||status==='issued'||status==='canceled')return false; const d=toYMD(deadline); if(!d) return false; const t=new Date(); t.setHours(0,0,0,0); return d<t; };
 const debounce=(fn,ms=150)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
 
-/* tags (parts) */
+/* ====== tags (создание) ====== */
 let currentParts=[];
-function addTag(text){ const t=String(text).trim(); if(!t) return; if(t.includes(',')){ t.split(',').map(s=>s.trim()).filter(Boolean).forEach(addTag); return; } if(currentParts.includes(t)) return; currentParts.push(t); const tag=document.createElement('span'); tag.className='tag badge rounded-pill text-bg-info'; tag.dataset.value=t; tag.innerHTML=`<span>${escapeHtml(t)}</span><button type="button" class="btn-close btn-close-white ms-2" aria-label="Удалить"></button>`; tag.querySelector('button').addEventListener('click',()=>{ currentParts=currentParts.filter(v=>v!==t); tag.remove(); }); tagsInput.insertBefore(tag, partsInput); }
+function addTag(text){
+  const t=String(text).trim(); if(!t) return;
+  if(t.includes(',')){ t.split(',').map(s=>s.trim()).filter(Boolean).forEach(addTag); return; }
+  if(currentParts.includes(t)) return;
+  currentParts.push(t);
+  const tag=document.createElement('span');
+  tag.className='tag badge rounded-pill text-bg-info';
+  tag.dataset.value=t;
+  tag.innerHTML=`<span>${escapeHtml(t)}</span><button type="button" class="btn-close btn-close-white ms-2" aria-label="Удалить"></button>`;
+  tag.querySelector('button').addEventListener('click',()=>{
+    currentParts=currentParts.filter(v=>v!==t); tag.remove();
+  });
+  tagsInput.insertBefore(tag, partsInput);
+}
 function clearTags(){ currentParts=[]; tagsInput.querySelectorAll('.tag').forEach(t=>t.remove()); }
-partsInput.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key==='Tab')&&partsInput.value.trim()!==''){ e.preventDefault(); addTag(partsInput.value); partsInput.value=''; }});
-partsInput.addEventListener('blur',()=>{ if(partsInput.value.trim()!==''){ addTag(partsInput.value); partsInput.value=''; }});
+partsInput.addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key==='Tab')&&partsInput.value.trim()!==''){
+    e.preventDefault(); addTag(partsInput.value); partsInput.value='';
+  }
+});
+partsInput.addEventListener('blur',()=>{
+  if(partsInput.value.trim()!==''){ addTag(partsInput.value); partsInput.value=''; }
+});
 tagsInput.addEventListener('click',()=>partsInput.focus());
 
-/* phone autocomplete — фикс выбора через pointerdown */
+/* ====== tags (редактирование в модалке) ====== */
+let editParts = [];
+function addEditTag(text){
+  const t=String(text).trim(); if(!t) return;
+  if(t.includes(',')){ t.split(',').map(s=>s.trim()).filter(Boolean).forEach(addEditTag); return; }
+  if(editParts.includes(t)) return;
+  editParts.push(t);
+  const tag=document.createElement('span');
+  tag.className='tag badge rounded-pill text-bg-info';
+  tag.dataset.value=t;
+  tag.innerHTML=`<span>${escapeHtml(t)}</span><button type="button" class="btn-close btn-close-white ms-2" aria-label="Удалить"></button>`;
+  tag.querySelector('button').addEventListener('click',()=>{
+    editParts=editParts.filter(v=>v!==t); tag.remove();
+  });
+  document.getElementById('editTagsInput').insertBefore(tag, document.getElementById('editPartsInput'));
+}
+function clearEditTags(){ editParts=[]; document.querySelectorAll('#editTagsInput .tag').forEach(t=>t.remove()); }
+const editPartsInput=document.getElementById('editPartsInput');
+if (editPartsInput){
+  editPartsInput.addEventListener('keydown',e=>{
+    if((e.key==='Enter'||e.key==='Tab')&&editPartsInput.value.trim()!==''){
+      e.preventDefault(); addEditTag(editPartsInput.value); editPartsInput.value='';
+    }
+  });
+  editPartsInput.addEventListener('blur',()=>{
+    if(editPartsInput.value.trim()!==''){ addEditTag(editPartsInput.value); editPartsInput.value=''; }
+  });
+  document.getElementById('editTagsInput').addEventListener('click',()=>editPartsInput.focus());
+}
+
+/* phone autocomplete — выбор через pointerdown, авто-скрытие */
 function attachPhoneAutocomplete(inputEl){
   const ac = inputEl.parentElement.querySelector('.ac-list');
   let suppressUntil = 0;
@@ -288,7 +391,7 @@ function attachPhoneAutocomplete(inputEl){
     if (!list.length || list[0] === raw) { close(); return; }
     ac.innerHTML = list.map((ph,i)=>`
       <button type="button" class="ac-item${i===0?' active':''}" data-val="${escapeHtml(ph)}">
-        <i class="bi bi-telephone me-2"></i>${escapeHtml(ph)}
+        <i class="bi bi-telephone"></i> ${escapeHtml(ph)}
       </button>`).join('');
     ac.classList.add('show');
     ac.querySelectorAll('.ac-item').forEach(btn=>{
@@ -309,12 +412,16 @@ function attachPhoneAutocomplete(inputEl){
 attachPhoneAutocomplete(phoneEl);
 
 /* ===== Render helpers ===== */
-function statusBadgeHTML(status, id, overdue=false){
-  const map={ new:{cls:'badge-status status-new',text:'Новый'},
-              wip:{cls:'badge-status status-wip',text:'В работе'},
-              done:{cls:'badge-status status-done',text:'Готов'} };
-  const m=map[status]||map.new, extra=overdue?' overdue-badge':'';
-  return `<span class="badge rounded-pill ${m.cls}${extra}">${m.text}</span>`;
+function statusBadgeHTML(status){
+  const map={
+    new:{cls:'status-new', text:'Новый'},
+    confirmed:{cls:'status-confirmed', text:'Подтверждён'},
+    instock:{cls:'status-instock', text:'На складе'},
+    issued:{cls:'status-issued', text:'Выдан клиенту'},
+    canceled:{cls:'status-canceled', text:'Отменён'}
+  };
+  const m=map[status]||map.new;
+  return `<span class="badge badge-status ${m.cls}">${m.text}</span>`;
 }
 function deadlineCellHTML(o){
   if(!o.deadline) return '<span class="text-secondary">—</span>';
@@ -324,24 +431,26 @@ function deadlineCellHTML(o){
 function rowHTML(o){
   const commentCell=o.comment ? `<span class="truncate" data-bs-toggle="tooltip" data-bs-title="${escapeHtml(o.comment)}">${escapeHtml(o.comment)}</span>` : '<span class="text-secondary">—</span>';
   return `<tr data-id="${o.id}">
-    <td><a href="tel:${escapeHtml(o.phone)}">${escapeHtml(o.phone)}</a></td>
-    <td class="d-none d-md-table-cell">${escapeHtml(o.date)}</td>
-    <td>${(o.parts||[]).map(p=>`<span class="badge rounded-pill text-bg-info me-1">${escapeHtml(p)}</span>`).join(' ')||'<span class="text-secondary">—</span>'}</td>
-    <td class="d-none d-xl-table-cell">${commentCell}</td>
-    <td class="d-none d-lg-table-cell">${deadlineCellHTML(o)}</td>
-    <td>${o.supplier?`<span class="badge rounded-pill text-bg-light border">${escapeHtml(o.supplier)}</span>`:'<span class="text-secondary">—</span>'}</td>
-    <td>${statusBadgeHTML(o.status, o.id, isOverdue(o.deadline,o.status))}</td>
-    <td class="text-end">
+    <td data-label="Телефон"><a href="tel:${escapeHtml(o.phone)}">${escapeHtml(o.phone)}</a></td>
+    <td class="d-none d-md-table-cell" data-label="Дата">${escapeHtml(o.date)}</td>
+    <td data-label="Детали">${(o.parts||[]).length ? (o.parts||[]).map(p=>`<span class="badge rounded-pill text-bg-info me-1">${escapeHtml(p)}</span>`).join(' ') : '<span class="text-secondary">—</span>'}</td>
+    <td class="d-none d-xl-table-cell" data-label="Комментарий">${commentCell}</td>
+    <td class="d-none d-lg-table-cell" data-label="Срок">${deadlineCellHTML(o)}</td>
+    <td data-label="Поставщик">${o.supplier?`<span class="badge rounded-pill text-bg-light border">${escapeHtml(o.supplier)}</span>`:'<span class="text-secondary">—</span>'}</td>
+    <td data-label="Статус">${statusBadgeHTML(o.status)}</td>
+    <td data-label="Действия" class="text-end">
       <div class="btn-group btn-group-sm">
         <button class="btn btn-outline-primary" data-act="edit" data-id="${o.id}" title="Редактировать"><i class="bi bi-pencil"></i></button>
-        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown"></button>
+        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="Меню действий"></button>
         <ul class="dropdown-menu dropdown-menu-end">
-          <li class="dropdown-header">Действия</li>
-          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="new">Сделать «Новый»</button></li>
-          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="wip">Сделать «В работе»</button></li>
-          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="done">Сделать «Готов»</button></li>
-          <li><button class="dropdown-item" data-act="print" data-id="${o.id}"><i class="bi bi-printer me-2"></i>Печать наклеек</button></li>
+          <li class="dropdown-header">Сменить статус</li>
+          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="new">Новый</button></li>
+          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="confirmed">Подтверждён</button></li>
+          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="instock">На складе</button></li>
+          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="issued">Выдан клиенту</button></li>
+          <li><button class="dropdown-item" data-act="setStatus" data-id="${o.id}" data-val="canceled">Отменён</button></li>
           <li><hr class="dropdown-divider"></li>
+          <li><button class="dropdown-item" data-act="print" data-id="${o.id}"><i class="bi bi-printer me-2"></i>Печать наклеек</button></li>
           <li><button class="dropdown-item text-danger" data-act="delete" data-id="${o.id}">Удалить</button></li>
         </ul>
       </div>
@@ -351,11 +460,14 @@ function rowHTML(o){
 function updateRowDOM(o){
   const tr = tableBody.querySelector(`tr[data-id="${o.id}"]`);
   if(!tr) return;
+  tr.children[2].innerHTML = (o.parts||[]).length
+    ? o.parts.map(p=>`<span class="badge rounded-pill text-bg-info me-1">${escapeHtml(p)}</span>`).join(' ')
+    : '<span class="text-secondary">—</span>';
   tr.children[3].innerHTML = o.comment
     ? `<span class="truncate" data-bs-toggle="tooltip" data-bs-title="${escapeHtml(o.comment)}">${escapeHtml(o.comment)}</span>`
     : '<span class="text-secondary">—</span>';
   tr.children[4].innerHTML = deadlineCellHTML(o);
-  tr.children[6].innerHTML = statusBadgeHTML(o.status, o.id, isOverdue(o.deadline,o.status));
+  tr.children[6].innerHTML = statusBadgeHTML(o.status);
   document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el=> new bootstrap.Tooltip(el));
 }
 
@@ -363,7 +475,7 @@ function updateRowDOM(o){
 function buildLabelHTML(order){
   const safe = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const phone = safe(order.phone);
-  const created = (()=>{ const d=new Date(order.dateRaw||Date.now()); const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear(); return `${dd}.${mm}.${yy}`; })();
+  const created = (()=>{ try{ const d=new Date(order.dateRaw||order.date||Date.now()); const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=d.getFullYear(); return `${dd}.${mm}.${yy}`; }catch{ return ''; }})();
   const note = (()=>{ const t=(order.comment||'').trim(); if(!t) return ''; const max=60; return safe(t.length>max?t.slice(0,max-1)+'…':t); })();
   const partsCount = Array.isArray(order.parts) ? order.parts.length : 0;
   const rightMeta = partsCount>0 ? `Позиций: ${partsCount}` : '';
@@ -460,6 +572,10 @@ document.addEventListener('click', async (e)=>{
     document.getElementById('editDeadline').value = item.deadline || '';
     document.getElementById('editSupplier').value = item.supplier || '';
     [...document.querySelectorAll('input[name="editStatus"]')].forEach(r=> r.checked = (r.value===item.status));
+
+    clearEditTags();
+    (item.parts||[]).forEach(addEditTag);
+
     const modal = new bootstrap.Modal(document.getElementById('editModal')); modal.show();
 
     const saveBtn = document.getElementById('editSaveBtn');
@@ -471,7 +587,7 @@ document.addEventListener('click', async (e)=>{
         deadline: document.getElementById('editDeadline').value || '',
         supplier: document.getElementById('editSupplier').value || '',
         status: (document.querySelector('input[name="editStatus"]:checked')||{value:item.status}).value,
-        parts: item.parts
+        parts: [...editParts]
       };
       const res = await apiUpdate(upd);
       if (res.ok){
@@ -522,6 +638,8 @@ scrollTopBtn.addEventListener('click', ()=> window.scrollTo({top:0, behavior:'sm
 
 /* init */
 reload(true);
+
+})(); // IIFE
 </script>
 </body>
 </html>
